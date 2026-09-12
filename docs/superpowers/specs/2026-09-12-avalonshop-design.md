@@ -49,12 +49,12 @@ avalonshop/
     app.css, app.js, htmx.min.js, fonts/*.woff2, favicon.svg
   internal/
     config/    env parsing, fail fast on missing required vars
-    store/     all SQL: products, variants, images, categories, zones, users, orders
-    web/       storefront handlers, cart cookie, session cookie, auth
-    admin/     admin handlers, upload handling
+    store/     all SQL: products, variants, images, categories, zones, users, orders; slugify lives here
+    app/       all HTTP handlers (storefront and admin share rendering, cookies, middleware), files split by area
     img/       decode → orient → strip → resize → webp
     mail/      smtp sender, template rendering, async send with logging
-    slug/      slugify + uniqueness suffix
+    money/     integer-taka formatting
+    token/     HMAC signer for cart, session, reset, and tracking tokens
 ```
 
 The existing `index.html`, `styles.css`, and `assets/` at the repo root are the retired coming-soon page. They are left untouched by this work.
@@ -242,7 +242,7 @@ On each uploaded file:
 1. Read up to 10 MB. Sniff content type with `http.DetectContentType`; accept only `image/jpeg`, `image/png`, `image/gif`, `image/webp`. Anything else, including HEIC, is rejected with "Please upload JPEG, PNG, WebP or GIF".
 2. Decode with `image.Decode`. GIF uses the first frame.
 3. Apply EXIF orientation for JPEG (tag 0x0112, values 1–8, rotate/flip accordingly). All metadata is dropped because we re-encode from pixels.
-4. Generate widths 400, 900, 1600. Never upscale: if the original is narrower than a target, that target is skipped, and the largest produced is recorded as `width`/`height` on `product_images`. Height follows aspect ratio. Resize with `draw.CatmullRom`.
+4. Generate widths 400, 900, 1600. Never upscale: targets wider than the original are skipped, and if the original is narrower than 1600 one extra variant at the original width is produced. The largest produced is recorded as `width`/`height` on `product_images`, and the set of existing variants is derived from that width (every standard width below it, plus itself). Height follows aspect ratio. Resize with `draw.CatmullRom`.
 5. Encode each as WebP, quality 82. Filenames `{random16hex}-{w}.webp` in `UPLOAD_DIR`. `product_images.file` stores the `{random16hex}` stem.
 6. Insert the row with `sort = max(sort) + 1`.
 
@@ -334,7 +334,7 @@ Unit tests, always run:
 - Totals: subtotal, delivery, total for a sample cart and zone.
 - Slugify: unicode, spaces, duplicates get `-2` suffix.
 - Phone normalization: `+8801712345678`, `01712 345678`, invalid forms.
-- Image pipeline: 2000×1500 PNG fixture produces three WebP files with correct widths; 600×600 produces only the 400 variant and records 600×600.
+- Image pipeline: 2000×1500 PNG fixture produces three WebP files with correct widths; 600×600 produces the 400 variant plus a 600 variant (the original width, never upscaled) and records 600×600.
 - Status transition table.
 
 Integration tests, run when `TEST_DATABASE_URL` is set, else skipped:
