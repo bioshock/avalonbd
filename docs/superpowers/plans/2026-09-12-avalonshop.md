@@ -1123,7 +1123,7 @@ git commit -m "feat(shop): HMAC token package for cart, session, reset, order li
   - `store.Slugify(s string) string`; `(*Store) UniqueSlug(ctx, table, base string, excludeID int64) (string, error)` where table is `"products"` or `"categories"`
   - `money.Format(n int) string` → `"৳ 1,200"`
 
-- [ ] **Step 1: Write failing unit tests for slug and money**
+- [x] **Step 1: Write failing unit tests for slug and money**
 
 `avalonshop/internal/store/slug_test.go`:
 
@@ -1165,12 +1165,12 @@ func TestFormat(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `go test ./internal/store/ ./internal/money/`
 Expected: FAIL, `undefined: Slugify` and `undefined: Format`
 
-- [ ] **Step 3: Write slug.go and money.go**
+- [x] **Step 3: Write slug.go and money.go**
 
 `avalonshop/internal/store/slug.go`:
 
@@ -1267,12 +1267,12 @@ func Format(n int) string {
 }
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `go mod tidy && go test ./internal/store/ ./internal/money/`
 Expected: PASS
 
-- [ ] **Step 5: Write the failing DB tests for categories and zones**
+- [x] **Step 5: Write the failing DB tests for categories and zones**
 
 `avalonshop/internal/store/categories_test.go`:
 
@@ -1363,12 +1363,12 @@ func TestZonesCRUD(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run to verify it fails**
+- [x] **Step 6: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Categories|Zones'`
 Expected: FAIL, `undefined: store.Category`
 
-- [ ] **Step 7: Write categories.go and zones.go**
+- [x] **Step 7: Write categories.go and zones.go**
 
 `avalonshop/internal/store/categories.go`:
 
@@ -1507,12 +1507,12 @@ func (s *Store) DeleteZone(ctx context.Context, id int64) error {
 }
 ```
 
-- [ ] **Step 8: Run to verify it passes**
+- [x] **Step 8: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add avalonshop
