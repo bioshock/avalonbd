@@ -74,7 +74,7 @@ Deviation from the spec's layout, locked here: storefront and admin handlers sha
 **Interfaces:**
 - Produces: `config.Config` struct and `config.Load() (Config, error)`, `config.LoadDotEnv(path string) error`, `Config.Secure() bool`. The binary supports `-healthcheck`.
 
-- [ ] **Step 1: Create the module and gitignore**
+- [x] **Step 1: Create the module and gitignore**
 
 ```bash
 mkdir -p avalonshop/internal/config && cd avalonshop
@@ -86,7 +86,7 @@ EOF
 cd .. && printf '.superpowers/\navalonshop/data/\navalonshop/.env\n' > .gitignore
 ```
 
-- [ ] **Step 2: Write the failing config test**
+- [x] **Step 2: Write the failing config test**
 
 `avalonshop/internal/config/config_test.go`:
 
@@ -160,12 +160,12 @@ func TestLoadDotEnv(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `cd avalonshop && go test ./internal/config/`
 Expected: FAIL, `undefined: load`
 
-- [ ] **Step 4: Write config.go**
+- [x] **Step 4: Write config.go**
 
 ```go
 // Package config reads settings from the environment.
@@ -271,12 +271,12 @@ func LoadDotEnv(path string) error {
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `go test ./internal/config/`
 Expected: PASS
 
-- [ ] **Step 6: Write main.go with /healthz and the -healthcheck probe**
+- [x] **Step 6: Write main.go with /healthz and the -healthcheck probe**
 
 ```go
 package main
@@ -355,7 +355,7 @@ func run(log *slog.Logger) error {
 }
 ```
 
-- [ ] **Step 7: Write Dockerfile, compose, .env.example, .dockerignore, README**
+- [x] **Step 7: Write Dockerfile, compose, .env.example, .dockerignore, README**
 
 `avalonshop/Dockerfile`:
 
@@ -471,7 +471,7 @@ Open http://localhost:8080. With `SMTP_HOST` empty, emails are printed to stdout
 See the "Deploy" section at the bottom (filled in by the final task).
 ```
 
-- [ ] **Step 8: Verify build and health**
+- [x] **Step 8: Verify build and health**
 
 Run: `cd avalonshop && go vet ./... && go build -o /tmp/avalonshop . && echo ok`
 Expected: `ok`
@@ -479,7 +479,7 @@ Expected: `ok`
 Run (in one shell): `DATABASE_URL=x BASE_URL=http://localhost:8080 SESSION_SECRET=$(printf '0%.0s' {1..64}) MAIL_FROM=a@b.c ORDER_NOTIFY_EMAIL=a@b.c /tmp/avalonshop & sleep 1; /tmp/avalonshop -healthcheck; echo "exit=$?"; kill %1`
 Expected: `exit=0`
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add .gitignore avalonshop
