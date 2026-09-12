@@ -2772,11 +2772,11 @@ git commit -m "feat(shop): orders with row-locked stock decrement and status tra
   - `img.Remove(dir, stem string, width int)` deletes all files for the stem (best effort)
   - `img.Orientation(jpeg []byte) int` (1–8; 1 when absent)
 
-- [ ] **Step 1: Add dependencies**
+- [x] **Step 1: Add dependencies**
 
 Run: `cd avalonshop && go get golang.org/x/image@latest github.com/gen2brain/webp@latest && go mod tidy`
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `avalonshop/internal/img/img_test.go`:
 
@@ -2926,12 +2926,12 @@ func TestOrientationParseAndApply(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `go test ./internal/img/`
 Expected: FAIL, `undefined: Process`
 
-- [ ] **Step 4: Write exif.go**
+- [x] **Step 4: Write exif.go**
 
 ```go
 package img
@@ -3008,7 +3008,7 @@ func tiffOrientation(seg []byte) int {
 }
 ```
 
-- [ ] **Step 5: Write img.go**
+- [x] **Step 5: Write img.go**
 
 ```go
 // Package img turns an uploaded image into oriented, metadata-free WebP variants.
@@ -3177,12 +3177,12 @@ func applyOrientation(src image.Image, o int) image.Image {
 }
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `go test ./internal/img/`
 Expected: PASS. Note the first WebP encode warms up the wasm-transpiled encoder; the package tests may take a few seconds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
