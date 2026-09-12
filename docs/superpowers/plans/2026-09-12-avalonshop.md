@@ -2115,11 +2115,11 @@ git commit -m "feat(shop): product, variant, image queries and cart lookup"
 **Interfaces:**
 - Produces: `store.User{ID int64; Email, PasswordHash, Name, Phone, Address, Role string; CreatedAt time.Time}`; `CreateUser(ctx, email, passwordHash, name, role string) (User, error)` (ErrDuplicate on same email, case-insensitive), `GetUserByEmail(ctx, email) (User, error)`, `GetUser(ctx, id) (User, error)`, `UpdateProfile(ctx, id, name, phone, address) error`, `UpdatePassword(ctx, id, hash) error`, `SeedAdmin(ctx, email, password string) error` (no-op if either is empty or an admin already exists), `ListOrdersByUser` lives in Task 7.
 
-- [ ] **Step 1: Add bcrypt**
+- [x] **Step 1: Add bcrypt**
 
 Run: `go get golang.org/x/crypto@latest && go mod tidy`
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `avalonshop/internal/store/users_test.go`:
 
@@ -2188,12 +2188,12 @@ func TestSeedAdmin(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Users|Seed'`
 Expected: FAIL, `undefined: st.CreateUser`
 
-- [ ] **Step 4: Write users.go**
+- [x] **Step 4: Write users.go**
 
 ```go
 package store
@@ -2282,12 +2282,12 @@ func (s *Store) SeedAdmin(ctx context.Context, email, password string) error {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS
 
-- [ ] **Step 6: Call SeedAdmin from main.go**
+- [x] **Step 6: Call SeedAdmin from main.go**
 
 Replace `_ = store.New(pool) // used from Task 10 on` with:
 
@@ -2299,7 +2299,7 @@ Replace `_ = store.New(pool) // used from Task 10 on` with:
 	_ = st // handed to the app in Task 10
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop

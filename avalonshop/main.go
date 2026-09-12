@@ -64,7 +64,11 @@ func run(log *slog.Logger) error {
 	if err := store.Migrate(ctx, pool, migrationsFS); err != nil {
 		return err
 	}
-	_ = store.New(pool) // used from Task 10 on
+	st := store.New(pool)
+	if err := st.SeedAdmin(ctx, cfg.AdminEmail, cfg.AdminPassword); err != nil {
+		return err
+	}
+	_ = st // handed to the app in Task 10
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
