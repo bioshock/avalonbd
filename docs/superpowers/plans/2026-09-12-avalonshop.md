@@ -864,7 +864,11 @@ git commit -m "feat(shop): schema and embedded migration runner"
   - `(Signer) ResetToken(userID int64, exp time.Time, passwordHash string) string`, `(Signer) ParseReset(tok string, now time.Time, lookupHash func(int64) (string, bool)) (int64, bool)`
   - `(Signer) OrderToken(number string) string` (16 hex chars), `(Signer) VerifyOrderToken(number, t string) bool`
 
-- [ ] **Step 1: Write the failing tests**
+**Implementation corrections (approved minor-correction policy):** Bind reset signatures to the entire password hash, not `hashPrefix`, so any password hash change invalidates the token. Reject session/reset tokens at `now.Unix() >= exp`, and reject nonpositive reset user IDs before lookup. Tests use fixed times and add expiry-boundary, shared-hash-prefix, malformed-input, wrong-key, and cart-filtering coverage; interfaces, architecture, and task order are unchanged.
+
+**Verification:** `go test ./internal/token/` first failed with `undefined: New`; it passed after implementation. All 13 token tests passed with 100% statement coverage using `go test -count=1 -cover ./internal/token/`. `go vet ./...` and `go test -count=1 -v ./...` passed; the migration test skipped because `TEST_DATABASE_URL` was unset, as permitted by the latest instruction. Parent will perform final database-backed validation.
+
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/token/token_test.go`:
 
@@ -960,12 +964,12 @@ func TestOrderToken(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `go test ./internal/token/`
 Expected: FAIL, `undefined: New`
 
-- [ ] **Step 3: Write token.go**
+- [x] **Step 3: Write token.go**
 
 ```go
 // Package token signs small values so they can live in cookies and URLs.
@@ -1093,12 +1097,12 @@ func (s Signer) VerifyOrderToken(number, t string) bool {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `go test ./internal/token/`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add avalonshop/internal/token
