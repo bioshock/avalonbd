@@ -1537,7 +1537,7 @@ git commit -m "feat(shop): categories, zones, slugify, money formatting"
   - `AddImage(img Image) (int64, error)`, `ListImages(productID int64) ([]Image, error)`, `UpdateImageAlt(id int64, alt string) error`, `MoveImage(id int64, up bool) error`, `DeleteImage(id int64) (Image, error)`
   - `VariantsForCart(ids []int64) ([]CartVariant, error)`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/store/products_test.go`:
 
@@ -1692,12 +1692,12 @@ func TestImagesOrderAndCartLookup(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Product|Images'`
 Expected: FAIL, `undefined: store.Product`
 
-- [ ] **Step 3: Write products.go**
+- [x] **Step 3: Write products.go**
 
 ```go
 package store
@@ -1989,7 +1989,7 @@ func (s *Store) VariantsForCart(ctx context.Context, ids []int64) ([]CartVariant
 }
 ```
 
-- [ ] **Step 4: Write images.go**
+- [x] **Step 4: Write images.go**
 
 ```go
 package store
@@ -2092,12 +2092,12 @@ func (s *Store) DeleteImage(ctx context.Context, id int64) (Image, error) {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add avalonshop/internal/store
