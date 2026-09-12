@@ -150,3 +150,48 @@ func TestDashboard(t *testing.T) {
 		t.Fatalf("%+v %v", d, err)
 	}
 }
+
+func TestPlaceOrderDuplicateLinesMergeAndCancel(t *testing.T) {
+	st, in, vid := orderFixture(t)
+	ctx := context.Background()
+	// Place order with duplicate variant lines: [A qty 2, A qty 1]
+	in.Lines = []store.OrderLine{{VariantID: vid, Qty: 2}, {VariantID: vid, Qty: 1}}
+	o, err := st.PlaceOrder(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Order should have exactly one item with merged qty of 3
+	if len(o.Items) != 1 || o.Items[0].Qty != 3 {
+		t.Fatalf("want 1 item with qty 3, got %+v", o.Items)
+	}
+	// Stock should be 5 - 3 = 2
+	if stock(t, st, vid) != 2 {
+		t.Fatalf("stock = %d, want 2", stock(t, st, vid))
+	}
+	// Cancel the order
+	if _, err := st.UpdateOrderStatus(ctx, o.ID, "confirmed"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpdateOrderStatus(ctx, o.ID, "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	// Stock should be restored to 5
+	if stock(t, st, vid) != 5 {
+		t.Fatalf("stock after cancel = %d, want 5", stock(t, st, vid))
+	}
+}
+
+func TestPlaceOrderInvalidZeroQty(t *testing.T) {
+	st, in, vid := orderFixture(t)
+	ctx := context.Background()
+	// Try to place order with qty 0
+	in.Lines = []store.OrderLine{{VariantID: vid, Qty: 0}}
+	_, err := st.PlaceOrder(ctx, in)
+	if err == nil {
+		t.Fatal("want error for qty 0, got nil")
+	}
+	// Stock should be unchanged
+	if stock(t, st, vid) != 5 {
+		t.Fatalf("stock = %d, want 5", stock(t, st, vid))
+	}
+}

@@ -90,6 +90,28 @@ const itemCols = `id, order_id, variant_id, product_name, variant_name, unit_pri
 // inserts the order with snapshotted names and prices, all in one transaction.
 func (s *Store) PlaceOrder(ctx context.Context, in NewOrder) (OrderFull, error) {
 	var out OrderFull
+
+	// Normalize lines: reject qty <= 0, merge duplicates by VariantID, sort by VariantID.
+	lineMap := make(map[int64]int)
+	for _, l := range in.Lines {
+		if l.Qty <= 0 {
+			return out, fmt.Errorf("line qty must be > 0")
+		}
+		lineMap[l.VariantID] += l.Qty
+	}
+	var lines []OrderLine
+	for vid, qty := range lineMap {
+		lines = append(lines, OrderLine{VariantID: vid, Qty: qty})
+	}
+	// Sort by VariantID to prevent deadlocks.
+	for i := 0; i < len(lines)-1; i++ {
+		for j := i + 1; j < len(lines); j++ {
+			if lines[j].VariantID < lines[i].VariantID {
+				lines[i], lines[j] = lines[j], lines[i]
+			}
+		}
+	}
+
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return out, err
@@ -105,9 +127,9 @@ func (s *Store) PlaceOrder(ctx context.Context, in NewOrder) (OrderFull, error) 
 		productName, variantName string
 		price                    int
 	}
-	snaps := make([]snap, len(in.Lines))
+	snaps := make([]snap, len(lines))
 	subtotal := 0
-	for i, l := range in.Lines {
+	for i, l := range lines {
 		var sn snap
 		var stock int
 		var active bool
@@ -135,7 +157,7 @@ func (s *Store) PlaceOrder(ctx context.Context, in NewOrder) (OrderFull, error) 
 	if err != nil {
 		return out, err
 	}
-	for i, l := range in.Lines {
+	for i, l := range lines {
 		irows, _ := tx.Query(ctx, `insert into order_items (order_id, variant_id, product_name, variant_name, unit_price, qty) values ($1, $2, $3, $4, $5, $6) returning `+itemCols,
 			out.ID, l.VariantID, snaps[i].productName, snaps[i].variantName, snaps[i].price, l.Qty)
 		item, err := pgx.CollectOneRow(irows, pgx.RowToStructByName[OrderItem])
@@ -203,7 +225,17 @@ func (s *Store) UpdateOrderStatus(ctx context.Context, id int64, to string) (Ord
 		return out, ErrTransition
 	}
 	if to == "cancelled" {
-		if _, err := tx.Exec(ctx, `update variants v set stock = v.stock + oi.qty from order_items oi where oi.order_id = $1 and oi.variant_id = v.id`, id); err != nil {
+		// Lock affected variants in id order to prevent deadlocks.
+		lockRows, err := tx.Query(ctx, `select id from variants where id in (select variant_id from order_items where order_id = $1) order by id for update`, id)
+		if err != nil {
+			return out, err
+		}
+		_, err = pgx.CollectRows(lockRows, pgx.RowToStructByName[struct{ ID int64 }])
+		if err != nil {
+			return out, err
+		}
+		// Restore stock from summed per-variant qty.
+		if _, err := tx.Exec(ctx, `update variants v set stock = v.stock + oi.qty from (select variant_id, sum(qty) as qty from order_items where order_id = $1 and variant_id is not null group by variant_id) oi where v.id = oi.variant_id`, id); err != nil {
 			return out, err
 		}
 	}
