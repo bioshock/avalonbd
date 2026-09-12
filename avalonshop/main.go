@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"flag"
 	"log/slog"
@@ -13,7 +14,13 @@ import (
 	_ "time/tzdata"
 
 	"avalonshop/internal/config"
+	"avalonshop/internal/store"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 func main() {
 	healthcheck := flag.Bool("healthcheck", false, "probe the running server and exit 0 if healthy")
@@ -48,6 +55,16 @@ func run(log *slog.Logger) error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	if err := store.Migrate(ctx, pool, migrationsFS); err != nil {
+		return err
+	}
+	_ = store.New(pool) // used from Task 10 on
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })

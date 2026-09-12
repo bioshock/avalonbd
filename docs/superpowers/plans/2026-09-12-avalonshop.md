@@ -497,11 +497,11 @@ git commit -m "feat(shop): scaffold Go module, config, health endpoint, Docker"
 **Interfaces:**
 - Produces: `store.Migrate(ctx, db *pgxpool.Pool, fsys fs.FS) error` (reads `migrations/*.sql` from fsys), `store.New(db *pgxpool.Pool) *Store`, errors `store.ErrNotFound`, `store.ErrInUse`, `store.ErrDuplicate`, `storetest.Pool(t testing.TB) *pgxpool.Pool` (skips without `TEST_DATABASE_URL`, resets schema, runs migrations).
 
-- [ ] **Step 1: Add pgx**
+- [x] **Step 1: Add pgx**
 
-Run: `cd avalonshop && go get github.com/jackc/pgx/v5@latest && go mod tidy`
+Run: `cd avalonshop && go get github.com/jackc/pgx/v5@latest`. Run `go mod tidy` after Step 4 introduces imports; otherwise it removes the unused dependency (approved implementation correction).
 
-- [ ] **Step 2: Write the schema**
+- [x] **Step 2: Write the schema**
 
 `avalonshop/migrations/0001_init.sql`:
 
@@ -604,7 +604,7 @@ create table order_items (
 create index order_items_order_idx on order_items(order_id);
 ```
 
-- [ ] **Step 3: Write store.go and the test helper**
+- [x] **Step 3: Write store.go and the test helper**
 
 `avalonshop/internal/store/store.go`:
 
@@ -705,7 +705,7 @@ func root(t testing.TB) string {
 }
 ```
 
-- [ ] **Step 4: Write the failing migration test**
+- [x] **Step 4: Write the failing migration test**
 
 `avalonshop/internal/store/migrate_test.go`:
 
@@ -741,12 +741,12 @@ func TestMigrateIdempotent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Run to verify it fails**
+- [x] **Step 5: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/`
 Expected: FAIL, `undefined: store.Migrate`
 
-- [ ] **Step 6: Write migrate.go**
+- [x] **Step 6: Write migrate.go**
 
 ```go
 package store
@@ -810,12 +810,12 @@ func Migrate(ctx context.Context, db *pgxpool.Pool, fsys fs.FS) error {
 }
 ```
 
-- [ ] **Step 7: Run to verify it passes**
+- [x] **Step 7: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS (and `go test ./internal/store/` without the env var prints SKIP)
 
-- [ ] **Step 8: Wire migrations into main.go**
+- [x] **Step 8: Wire migrations into main.go**
 
 Add to imports: `"embed"`, `"avalonshop/internal/store"`, `"github.com/jackc/pgx/v5/pgxpool"`. Add above `main`:
 
@@ -838,7 +838,7 @@ In `run`, after `defer stop()`:
 	_ = store.New(pool) // used from Task 10 on
 ```
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 Run: `go vet ./... && go build ./... && echo ok`
 Expected: `ok`
