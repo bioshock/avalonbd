@@ -2320,7 +2320,7 @@ git commit -m "feat(shop): users store and first-admin seed"
   - `type ErrOutOfStock struct{ VariantID int64; Name string; Available int }` implementing `error`
   - `PlaceOrder(ctx, NewOrder) (OrderFull, error)`, `GetOrderByNumber(ctx, number) (OrderFull, error)`, `GetOrder(ctx, id) (OrderFull, error)`, `ListOrders(ctx, status string, limit int) ([]Order, error)` (status "" = all), `ListOrdersByUser(ctx, userID) ([]Order, error)`, `UpdateOrderStatus(ctx, id, to string) (OrderFull, error)` (ErrTransition; restores stock on cancel), `SetAdminNote(ctx, id, note) error`, `CanTransition(from, to string) bool`, `Dashboard(ctx) (Dashboard, error)` with `Dashboard{NewOrders int; LowStock []LowStock; Recent []Order}`, `LowStock{ProductName, VariantName string; Stock int}`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/store/orders_test.go`:
 
@@ -2477,12 +2477,12 @@ func TestDashboard(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Order|Transition|Dashboard'`
 Expected: FAIL, `undefined: store.NewOrder`
 
-- [ ] **Step 3: Write orders.go**
+- [x] **Step 3: Write orders.go**
 
 ```go
 package store
@@ -2743,12 +2743,12 @@ func (s *Store) Dashboard(ctx context.Context) (Dashboard, error) {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/... -count=1`
 Expected: PASS (including the concurrent test)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add avalonshop/internal/store
