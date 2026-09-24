@@ -24,16 +24,20 @@ import (
 var ErrUnsupported = errors.New("Please upload JPEG, PNG, WebP or GIF")
 
 // ErrTooLarge guards against decompression-bomb uploads: image decoders
-// allocate width*height*bytesPerPixel from the header alone, before reading
-// any pixel data, so a tiny file can declare dimensions that exhaust memory.
-// maxDim and maxPixels are a fixed ruling (30 MP / 10,000px per side) — well
-// above anything a phone or DSLR photo needs and an order of magnitude above
-// the 1600px-wide variant this pipeline ever produces. Do not tune these
-// without re-deriving the allocation math.
-var ErrTooLarge = errors.New("That image is too large; please upload one under 30 megapixels.")
+// allocate width*height*bytesPerPixel from the header alone, before reading any
+// pixel data, so a tiny file can declare dimensions that exhaust memory.
+//
+// The cap is set from measurement, not from the decoded image alone: decoding
+// 29.8 MP peaked at 547 MB for a JPEG and 899 MB for a PNG, because resize adds
+// a destination buffer and applyOrientation adds two more full-size NRGBA
+// buffers. 16 MP holds that peak near 480 MB, which fits a 1 GB container, and
+// is still three times the 1600px-wide variant this pipeline ever produces in
+// each axis. Re-measure before raising it; the decoded image is a fraction of
+// the real peak.
+var ErrTooLarge = errors.New("That image is too large; please upload one under 16 megapixels.")
 
 const maxDim = 10_000
-const maxPixels = 30_000_000
+const maxPixels = 16_000_000
 
 var Widths = []int{400, 900, 1600}
 
