@@ -77,6 +77,10 @@ func (a *App) routes() {
 	m.HandleFunc("GET /{$}", a.home)
 	m.HandleFunc("GET /products", a.products)
 	m.HandleFunc("GET /products/{slug}", a.product)
+	m.HandleFunc("GET /cart", a.cartPage)
+	m.HandleFunc("GET /cart/drawer", a.cartDrawer)
+	m.HandleFunc("POST /cart/items", a.cartAdd)
+	m.HandleFunc("POST /cart/items/{id}", a.cartUpdate)
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

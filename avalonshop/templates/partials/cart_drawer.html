@@ -1,0 +1,23 @@
+<div class="head"><h2>Your cart</h2><button class="x" type="button" data-close-cart aria-label="Close cart">×</button></div>
+<div class="lines">
+{{if .Lines}}{{range .Lines}}
+<div class="cl">
+  {{template "cart_thumb.html" .}}
+  <div>
+    <p class="n"><a href="/products/{{.ProductSlug}}">{{.ProductName}}</a></p>
+    <div class="v">{{.VariantName}} · {{taka .Price}}</div>
+    {{if .Short}}<div class="v err" role="alert">Only {{.Stock}} left</div>{{end}}
+    <form method="post" action="/cart/items/{{.VariantID}}" hx-post="/cart/items/{{.VariantID}}" hx-target="#drawer" hx-swap="innerHTML" hx-trigger="change">
+      {{template "qty_stepper.html" .}}
+    </form>
+  </div>
+  <div class="price">{{taka .LineTotal}}</div>
+</div>
+{{end}}{{else}}<p class="empty">Your cart is empty.</p>{{end}}
+</div>
+<div class="foot">
+  <div class="totals"><span>Subtotal</span><span class="price">{{taka .Subtotal}}</span></div>
+  <p class="help">Delivery is added at checkout.</p>
+  {{if .Lines}}<a class="btn" href="/checkout">Checkout</a>{{else}}<a class="btn ghost" href="/products">Browse products</a>{{end}}
+</div>
+{{template "cart_badge.html" .Count}}

@@ -5187,7 +5187,7 @@ git commit -m "feat(shop): home, listing, and product pages with SEO metadata an
 - Consumes: `token.CartLine`, `a.cartLines`, `a.saveCart`, `store.VariantsForCart`.
 - Produces: routes `GET /cart`, `GET /cart/drawer`, `POST /cart/items` (form `variant_id`, `qty`), `POST /cart/items/{id}` (form `qty`, 0 removes); types `cartLineView{store.CartVariant; Qty, LineTotal int; Short bool}`, `cartView{Lines []cartLineView; Subtotal, Count int}`; `(*App) buildCart(ctx, lines) (cartView, []token.CartLine, error)` returning the lines that survived (vanished/inactive variants dropped). Checkout (Task 13) reuses `buildCart`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/cart_test.go`:
 
@@ -5299,12 +5299,12 @@ func TestCartDropsInactiveAndFlagsShort(t *testing.T) {
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run Cart`
 Expected: FAIL with 404s (routes missing)
 
-- [ ] **Step 3: Write cart.go**
+- [x] **Step 3: Write cart.go**
 
 ```go
 package app
@@ -5478,7 +5478,7 @@ func (a *App) cartPage(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -5489,7 +5489,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("POST /cart/items/{id}", a.cartUpdate)
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/partials/cart_drawer.html`:
 
@@ -5559,12 +5559,12 @@ Add to `app.css` under the cart section: `.cl .err{color:var(--danger)}`.
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
