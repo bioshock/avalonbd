@@ -64,7 +64,7 @@ func (a *App) funcs() template.FuncMap {
 		"add":       func(x, y int) int { return x + y },
 		"mul":       func(x, y int) int { return x * y },
 		"hasPrefix": strings.HasPrefix,
-		"cardData": func(c store.ProductCard, i int) map[string]any { return map[string]any{"C": c, "Eager": i < 4} },
+		"cardData":  func(c store.ProductCard, i int) map[string]any { return map[string]any{"C": c, "Eager": i < 4} },
 	}
 }
 

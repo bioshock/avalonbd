@@ -47,6 +47,9 @@ func TestHomeAndListing(t *testing.T) {
 	if !strings.Contains(body, `<link rel="canonical" href="http://localhost:8080/">`) || !strings.Contains(body, `<meta name="description"`) {
 		t.Fatal("home missing canonical or description")
 	}
+	if !strings.Contains(body, `<meta property="og:image" content="http://localhost:8080/media/`) {
+		t.Fatal("home missing og:image")
+	}
 	if strings.Contains(body, `loading="lazy"`) {
 		t.Fatal("first-row cards must load eagerly")
 	}
@@ -54,6 +57,9 @@ func TestHomeAndListing(t *testing.T) {
 	body = w.Body.String()
 	if w.Code != 200 || !strings.Contains(body, `class="chip on" href="/products?category=honey"`) || !strings.Contains(body, `href="http://localhost:8080/products?category=honey"`) {
 		t.Fatalf("category listing: %d\n%s", w.Code, body)
+	}
+	if !strings.Contains(body, `<meta property="og:image" content="http://localhost:8080/media/`) {
+		t.Fatal("category listing missing og:image")
 	}
 	if strings.Contains(body, "Hidden") {
 		t.Fatal("inactive product listed")
