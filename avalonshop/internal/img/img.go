@@ -23,6 +23,18 @@ import (
 
 var ErrUnsupported = errors.New("Please upload JPEG, PNG, WebP or GIF")
 
+// ErrTooLarge guards against decompression-bomb uploads: image decoders
+// allocate width*height*bytesPerPixel from the header alone, before reading
+// any pixel data, so a tiny file can declare dimensions that exhaust memory.
+// maxDim and maxPixels are a fixed ruling (30 MP / 10,000px per side) — well
+// above anything a phone or DSLR photo needs and an order of magnitude above
+// the 1600px-wide variant this pipeline ever produces. Do not tune these
+// without re-deriving the allocation math.
+var ErrTooLarge = errors.New("That image is too large; please upload one under 30 megapixels.")
+
+const maxDim = 10_000
+const maxPixels = 30_000_000
+
 var Widths = []int{400, 900, 1600}
 
 const quality = 82
@@ -53,20 +65,57 @@ func Remove(dir, stem string, width int) {
 	}
 }
 
+// checkDimensions rejects declared dimensions that would make a full decode
+// allocate an unreasonable amount of memory, before any pixel data is read.
+func checkDimensions(w, h int) error {
+	if w > maxDim || h > maxDim || w*h > maxPixels {
+		return ErrTooLarge
+	}
+	return nil
+}
+
 func decode(data []byte) (image.Image, error) {
 	r := bytes.NewReader(data)
 	switch http.DetectContentType(data) {
 	case "image/jpeg":
+		cfg, err := jpeg.DecodeConfig(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		if err := checkDimensions(cfg.Width, cfg.Height); err != nil {
+			return nil, err
+		}
 		m, err := jpeg.Decode(r)
 		if err != nil {
 			return nil, err
 		}
 		return applyOrientation(m, Orientation(data)), nil
 	case "image/png":
+		cfg, err := png.DecodeConfig(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		if err := checkDimensions(cfg.Width, cfg.Height); err != nil {
+			return nil, err
+		}
 		return png.Decode(r)
 	case "image/gif":
+		cfg, err := gif.DecodeConfig(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		if err := checkDimensions(cfg.Width, cfg.Height); err != nil {
+			return nil, err
+		}
 		return gif.Decode(r) // first frame
 	case "image/webp":
+		cfg, err := webp.DecodeConfig(bytes.NewReader(data))
+		if err != nil {
+			return nil, err
+		}
+		if err := checkDimensions(cfg.Width, cfg.Height); err != nil {
+			return nil, err
+		}
 		return webp.Decode(r, webp.Options{AutoRotate: true})
 	}
 	return nil, ErrUnsupported
@@ -79,6 +128,9 @@ func Process(data []byte, dir string) (Result, error) {
 	if err != nil {
 		if errors.Is(err, ErrUnsupported) {
 			return Result{}, ErrUnsupported
+		}
+		if errors.Is(err, ErrTooLarge) {
+			return Result{}, ErrTooLarge
 		}
 		return Result{}, fmt.Errorf("decode: %w", err)
 	}

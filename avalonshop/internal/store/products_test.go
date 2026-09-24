@@ -125,15 +125,17 @@ func TestImagesOrderAndCartLookup(t *testing.T) {
 	if imgs[0].ID != a || imgs[1].ID != b {
 		t.Fatalf("initial order: %+v", imgs)
 	}
-	if err := st.MoveImage(ctx, b, true); err != nil {
+	if _, err := st.MoveImage(ctx, b, true); err != nil {
 		t.Fatal(err)
 	}
 	imgs, _ = st.ListImages(ctx, id)
 	if imgs[0].ID != b {
 		t.Fatalf("move up failed: %+v", imgs)
 	}
-	if err := st.MoveImage(ctx, b, true); err != nil {
+	if movedProduct, err := st.MoveImage(ctx, b, true); err != nil {
 		t.Fatalf("moving the first image up should be a no-op: %v", err)
+	} else if movedProduct != id {
+		t.Fatalf("MoveImage should return the image's own product id, got %d want %d", movedProduct, id)
 	}
 	st.UpdateImageAlt(ctx, a, "jar of honey")
 	del, err := st.DeleteImage(ctx, a)

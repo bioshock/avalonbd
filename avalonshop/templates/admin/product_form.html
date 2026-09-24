@@ -1,5 +1,6 @@
 {{define "content"}}{{$d := .Data}}{{$p := $d.Product}}
 <h1>{{if $d.IsNew}}New product{{else}}{{$p.Name}}{{end}}</h1>
+{{with $d.Errors.form}}<div class="errbox" role="alert">{{.}}</div>{{end}}
 <form class="form wide" method="post" action="{{if $d.IsNew}}/admin/products/new{{else}}/admin/products/{{$p.ID}}{{end}}">
   <div class="row">
     <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{$p.Name}}" required>{{with $d.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>

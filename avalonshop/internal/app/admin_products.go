@@ -15,6 +15,22 @@ import (
 const maxUploadBytes = 10 << 20
 const maxUploadFiles = 10
 
+// maxFilenameInMessage caps how much of an uploaded filename lands in a flash
+// message. The filename is attacker-controlled and never touches the
+// filesystem (img.Process names files itself), but it was being echoed
+// unbounded into a Set-Cookie flash: ten ~5000-character filenames put
+// ~50 KB into one response header, which browsers and proxies can drop or
+// reject outright (task-17-review Minor 5).
+const maxFilenameInMessage = 60
+
+func truncateFilename(name string) string {
+	r := []rune(name)
+	if len(r) <= maxFilenameInMessage {
+		return name
+	}
+	return string(r[:maxFilenameInMessage]) + "…"
+}
+
 type productFormData struct {
 	Product    store.Product
 	Variants   []store.Variant
@@ -267,48 +283,69 @@ func (a *App) adminImagesUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, fh := range files {
 		if fh.Size > maxUploadBytes {
-			errs = append(errs, fh.Filename+": over 10 MB.")
+			errs = append(errs, truncateFilename(fh.Filename)+": over 10 MB.")
 			continue
 		}
 		f, err := fh.Open()
 		if err != nil {
-			errs = append(errs, fh.Filename+": could not read.")
+			errs = append(errs, truncateFilename(fh.Filename)+": could not read.")
 			continue
 		}
 		data, err := io.ReadAll(f)
 		f.Close()
 		if err != nil {
-			errs = append(errs, fh.Filename+": could not read.")
+			errs = append(errs, truncateFilename(fh.Filename)+": could not read.")
 			continue
 		}
 		// img.Process names the files itself (a random hex stem); the
 		// untrusted fh.Filename from the request is never used as a path.
 		res, err := img.Process(data, a.cfg.UploadDir)
 		if err != nil {
-			errs = append(errs, fh.Filename+": "+err.Error())
+			errs = append(errs, truncateFilename(fh.Filename)+": "+err.Error())
 			continue
 		}
 		if _, err := a.st.AddImage(r.Context(), store.Image{ProductID: id, File: res.Stem, Width: res.Width, Height: res.Height}); err != nil {
 			img.Remove(a.cfg.UploadDir, res.Stem, res.Width)
-			errs = append(errs, fh.Filename+": could not save.")
+			errs = append(errs, truncateFilename(fh.Filename)+": could not save.")
 		}
 	}
 	a.imagesResponse(w, r, id, errs)
 }
 
+// adminImageAlt and adminImageMove take the product id to redirect back to
+// from the store, not from the form's product_id field: that field is
+// unauthenticated attacker input, and trusting it let a request for one
+// image re-render a different product's photo list, or redirect to
+// /admin/products/0 when omitted entirely (task-17-review Minor 6).
+// adminImageDelete already got this right; these two now match it.
 func (a *App) adminImageAlt(w http.ResponseWriter, r *http.Request) {
-	productID, _ := strconv.ParseInt(r.FormValue("product_id"), 10, 64)
-	if err := a.st.UpdateImageAlt(r.Context(), pathID(r), strings.TrimSpace(r.FormValue("alt"))); err != nil {
-		a.imagesResponse(w, r, productID, []string{"Could not save alt text."})
+	productID, err := a.st.UpdateImageAlt(r.Context(), pathID(r), strings.TrimSpace(r.FormValue("alt")))
+	if errors.Is(err, store.ErrNotFound) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	a.imagesResponse(w, r, productID, nil)
 }
 
 func (a *App) adminImageMove(w http.ResponseWriter, r *http.Request) {
-	productID, _ := strconv.ParseInt(r.FormValue("product_id"), 10, 64)
-	if err := a.st.MoveImage(r.Context(), pathID(r), r.FormValue("dir") == "up"); err != nil {
-		a.imagesResponse(w, r, productID, []string{"Could not reorder."})
+	dir := r.FormValue("dir")
+	if dir != "up" && dir != "down" {
+		// Any value other than the two the UI ever sends is rejected outright
+		// rather than silently treated as "down" (task-17-review Minor 7).
+		a.notFound(w, r)
+		return
+	}
+	productID, err := a.st.MoveImage(r.Context(), pathID(r), dir == "up")
+	if errors.Is(err, store.ErrNotFound) {
+		a.notFound(w, r)
+		return
+	}
+	if err != nil {
+		a.serverError(w, r, err)
 		return
 	}
 	a.imagesResponse(w, r, productID, nil)

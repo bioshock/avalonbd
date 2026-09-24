@@ -203,21 +203,21 @@ func (s *Store) UpdateProduct(ctx context.Context, p Product, vs []Variant) erro
 
 func syncVariants(ctx context.Context, tx pgx.Tx, productID int64, vs []Variant) error {
 	keep := []int64{0}
-	for i, v := range vs {
+	for _, v := range vs {
 		var sku *string
 		if v.SKU != nil && *v.SKU != "" {
 			sku = v.SKU
 		}
 		if v.ID > 0 {
 			if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, stock = $6, sort = $7 where id = $1 and product_id = $2`,
-				v.ID, productID, v.Name, sku, v.Price, v.Stock, i); err != nil {
+				v.ID, productID, v.Name, sku, v.Price, v.Stock, v.Sort); err != nil {
 				return mapErr(err)
 			}
 			keep = append(keep, v.ID)
 		} else {
 			var id int64
 			if err := tx.QueryRow(ctx, `insert into variants (product_id, name, sku, price, stock, sort) values ($1, $2, $3, $4, $5, $6) returning id`,
-				productID, v.Name, sku, v.Price, v.Stock, i).Scan(&id); err != nil {
+				productID, v.Name, sku, v.Price, v.Stock, v.Sort).Scan(&id); err != nil {
 				return mapErr(err)
 			}
 			keep = append(keep, id)

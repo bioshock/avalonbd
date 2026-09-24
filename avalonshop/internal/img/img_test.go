@@ -3,6 +3,8 @@ package img
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"hash/crc32"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -89,6 +91,76 @@ func TestProcessSmallNeverUpscales(t *testing.T) {
 func TestProcessRejectsNonImage(t *testing.T) {
 	if _, err := Process([]byte("%PDF-1.4 not an image"), t.TempDir()); err != ErrUnsupported {
 		t.Fatalf("want ErrUnsupported, got %v", err)
+	}
+}
+
+// craftOversizedPNG builds a syntactically valid PNG (correct signature, IHDR
+// with a real CRC32, and a token IDAT/IEND) that declares width x height in
+// its header without containing real pixel data for it. This is the same
+// "decompression bomb" shape as a crafted huge-IHDR/tiny-IDAT file: decoders
+// allocate width*height*bytesPerPixel straight from IHDR, before ever
+// inflating IDAT, so the file itself stays a few dozen bytes regardless of
+// the declared dimensions — no large fixture needs to be committed.
+func craftOversizedPNG(t *testing.T, width, height uint32) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	buf.Write([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'})
+
+	writeChunk := func(typ string, data []byte) {
+		var lenBuf [4]byte
+		binary.BigEndian.PutUint32(lenBuf[:], uint32(len(data)))
+		buf.Write(lenBuf[:])
+		typAndData := append([]byte(typ), data...)
+		buf.Write(typAndData)
+		var crcBuf [4]byte
+		binary.BigEndian.PutUint32(crcBuf[:], crc32.ChecksumIEEE(typAndData))
+		buf.Write(crcBuf[:])
+	}
+
+	ihdr := make([]byte, 13)
+	binary.BigEndian.PutUint32(ihdr[0:], width)
+	binary.BigEndian.PutUint32(ihdr[4:], height)
+	ihdr[8] = 8 // bit depth
+	ihdr[9] = 6 // color type: truecolor with alpha
+	// compression, filter, interlace all 0
+	writeChunk("IHDR", ihdr)
+	writeChunk("IDAT", []byte{0x00}) // never inflated: rejected on dimensions first
+	writeChunk("IEND", nil)
+	return buf.Bytes()
+}
+
+// TestProcessRejectsOversizedImage is the C2 fix: a header declaring
+// 20000x20000 is over both the 10,000px-per-side and 30,000,000px-area caps,
+// at a file size of a few dozen bytes — far under the 10 MB per-file upload
+// cap, which only ever measured compressed bytes on the wire and never
+// looked at declared dimensions. Deleting the dimension check in decode
+// makes this test hang/OOM rather than simply fail, since Process would then
+// attempt a real 1.6 GB decode of garbage IDAT data.
+func TestProcessRejectsOversizedImage(t *testing.T) {
+	dir := t.TempDir()
+	huge := craftOversizedPNG(t, 20000, 20000)
+	if _, err := Process(huge, dir); !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("want ErrTooLarge, got %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("a rejected image must not write any files: %v", entries)
+	}
+}
+
+// TestProcessAcceptsNormalSizedImage pins the other side of C2: an ordinary
+// upload, comfortably under both new caps, must still be processed normally.
+func TestProcessAcceptsNormalSizedImage(t *testing.T) {
+	dir := t.TempDir()
+	r, err := Process(pngBytes(t, gradient(1200, 900)), dir)
+	if err != nil {
+		t.Fatalf("normal image should be accepted: %v", err)
+	}
+	if r.Width != 1200 || r.Height != 900 {
+		t.Fatalf("result %+v", r)
 	}
 }
 

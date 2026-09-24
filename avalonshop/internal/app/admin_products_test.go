@@ -100,6 +100,41 @@ func TestAdminProductCreateEditDelete(t *testing.T) {
 	}
 }
 
+// TestAdminProductVariantSortIsHonoured is the C1 fix: decision 6 added a
+// variant_sort field so an admin can reorder variants without retyping them.
+// parseProductForm read it correctly, but syncVariants (internal/store) was
+// writing the loop index instead of Variant.Sort, so the typed order was
+// silently discarded and storage order always matched submitted row order.
+// Posting three variants out of numeric-sort order must come back in sort
+// order, not row order.
+func TestAdminProductVariantSortIsHonoured(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+	v := url.Values{"name": {"Sorted"}, "description": {"d"}, "meta_description": {"d"}, "active": {"on"}}
+	rows := []struct{ name, sort string }{{"A", "30"}, {"B", "20"}, {"C", "10"}}
+	for _, row := range rows {
+		v.Add("variant_id", "")
+		v.Add("variant_name", row.name)
+		v.Add("variant_sku", "")
+		v.Add("variant_price", "1")
+		v.Add("variant_stock", "1")
+		v.Add("variant_sort", row.sort)
+	}
+	w := do(t, a, "POST", "/admin/products/new", strings.NewReader(v.Encode()), "Cookie", adm)
+	if w.Code != 303 {
+		t.Fatalf("create: %d\n%s", w.Code, w.Body.String())
+	}
+	p, err := st.GetProductBySlug(ctx, "sorted", false)
+	if err != nil || len(p.Variants) != 3 {
+		t.Fatalf("product: %+v %v", p, err)
+	}
+	got := []string{p.Variants[0].Name, p.Variants[1].Name, p.Variants[2].Name}
+	if got[0] != "C" || got[1] != "B" || got[2] != "A" {
+		t.Fatalf("variant_sort not honoured: stored order %v, want [C B A] (sort 10,20,30)", got)
+	}
+}
+
 func TestAdminProductImages(t *testing.T) {
 	a, st := newDBApp(t)
 	adm := adminSession(t, a, st)
@@ -159,6 +194,105 @@ func TestAdminProductImages(t *testing.T) {
 	do(t, a, "POST", "/admin/products/"+itoa(id)+"/delete", nil, "Cookie", adm)
 	if _, err := os.Stat(filepath.Join(a.cfg.UploadDir, img.Filename(second.File, 400))); !os.IsNotExist(err) {
 		t.Fatal("product delete left files")
+	}
+}
+
+// TestAdminProductImagePerFileSizeCap test-locks spec §8's per-file 10 MB
+// cap: it works today, but nothing failed when the review deleted the check
+// entirely (task-17-review Minor 11).
+func TestAdminProductImagePerFileSizeCap(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+	id, _ := st.CreateProduct(ctx, store.Product{Slug: "p", Name: "P", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("images", "big.png")
+	fw.Write(bytes.Repeat([]byte{0}, maxUploadBytes+1)) // one byte over the 10 MB per-file cap
+	mw.Close()
+
+	w := do(t, a, "POST", "/admin/products/"+itoa(id)+"/images", &body, "Cookie", adm, "Content-Type", mw.FormDataContentType(), "HX-Request", "true")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "over 10 MB") {
+		t.Fatalf("oversized file: %d\n%s", w.Code, w.Body.String())
+	}
+	if imgs, _ := st.ListImages(ctx, id); len(imgs) != 0 {
+		t.Fatalf("a file over the per-file cap must not be processed: %d rows", len(imgs))
+	}
+}
+
+// TestAdminProductImageFileCountCap test-locks spec §8's 10-file cap: also
+// verified working but unpinned (task-17-review Minor 11).
+func TestAdminProductImageFileCountCap(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+	id, _ := st.CreateProduct(ctx, store.Product{Slug: "p", Name: "P", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	m := image.NewNRGBA(image.Rect(0, 0, 10, 10))
+	var pngBuf bytes.Buffer
+	png.Encode(&pngBuf, m)
+	for i := 0; i < 14; i++ {
+		fw, _ := mw.CreateFormFile("images", "p.png")
+		fw.Write(pngBuf.Bytes())
+	}
+	mw.Close()
+
+	w := do(t, a, "POST", "/admin/products/"+itoa(id)+"/images", &body, "Cookie", adm, "Content-Type", mw.FormDataContentType(), "HX-Request", "true")
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "Only the first 10 files were processed.") {
+		t.Fatalf("14 files: %d\n%s", w.Code, w.Body.String())
+	}
+	imgs, _ := st.ListImages(ctx, id)
+	if len(imgs) != 10 {
+		t.Fatalf("want exactly 10 rows for 14 uploaded files, got %d", len(imgs))
+	}
+}
+
+// TestAdminImageMoveRejectsInvalidDirection is the fix for review Minor 7:
+// any dir other than exactly "up" or "down" used to fall through to "down".
+func TestAdminImageMoveRejectsInvalidDirection(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+	id, _ := st.CreateProduct(ctx, store.Product{Slug: "p", Name: "P", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+	first, _ := st.AddImage(ctx, store.Image{ProductID: id, File: "a", Width: 10, Height: 10})
+	st.AddImage(ctx, store.Image{ProductID: id, File: "b", Width: 10, Height: 10})
+
+	w := do(t, a, "POST", "/admin/images/"+itoa(first)+"/move", strings.NewReader("dir=sideways&product_id="+itoa(id)), "Cookie", adm)
+	if w.Code != 404 {
+		t.Fatalf("invalid dir should be rejected, got %d", w.Code)
+	}
+	imgs, _ := st.ListImages(ctx, id)
+	if imgs[0].ID != first {
+		t.Fatalf("order must be unchanged by a rejected move: %+v", imgs)
+	}
+}
+
+// TestAdminImageProductIDIsDerivedNotTrusted is the fix for review Minor 6:
+// adminImageAlt and adminImageMove used to trust product_id from the form.
+// Posting a wrong (or missing) product_id must not change which product the
+// response redirects to, or which product's list gets re-rendered.
+func TestAdminImageProductIDIsDerivedNotTrusted(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+	id1, _ := st.CreateProduct(ctx, store.Product{Slug: "p1", Name: "P1", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+	id2, _ := st.CreateProduct(ctx, store.Product{Slug: "p2", Name: "P2", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+	imgID, _ := st.AddImage(ctx, store.Image{ProductID: id1, File: "a", Width: 10, Height: 10})
+
+	// Claiming the image belongs to product 2: the redirect must still go to
+	// product 1, the image's real owner, not the claimed product_id.
+	w := do(t, a, "POST", "/admin/images/"+itoa(imgID), strings.NewReader("alt=x&product_id="+itoa(id2)), "Cookie", adm)
+	if w.Code != 303 || w.Header().Get("Location") != "/admin/products/"+itoa(id1) {
+		t.Fatalf("alt should redirect to the image's real product (%d), got %d %q", id1, w.Code, w.Header().Get("Location"))
+	}
+
+	// Omitting product_id entirely must not redirect to /admin/products/0.
+	w = do(t, a, "POST", "/admin/images/"+itoa(imgID)+"/move", strings.NewReader("dir=up"), "Cookie", adm)
+	if w.Code != 303 || w.Header().Get("Location") != "/admin/products/"+itoa(id1) {
+		t.Fatalf("move with no product_id should still redirect to %d, got %d %q", id1, w.Code, w.Header().Get("Location"))
 	}
 }
 
