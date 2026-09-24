@@ -85,6 +85,17 @@ func (a *App) routes() {
 	m.HandleFunc("POST /checkout", a.checkoutPost)
 	m.HandleFunc("GET /checkout/totals", a.checkoutTotals)
 	m.HandleFunc("GET /orders/{number}", a.orderPage)
+	m.HandleFunc("GET /login", a.loginGet)
+	m.HandleFunc("POST /login", a.loginPost)
+	m.HandleFunc("POST /logout", a.logoutPost)
+	m.HandleFunc("GET /register", a.registerGet)
+	m.HandleFunc("POST /register", a.registerPost)
+	m.HandleFunc("GET /forgot", a.forgotGet)
+	m.HandleFunc("POST /forgot", a.forgotPost)
+	m.HandleFunc("GET /reset/{token}", a.resetGet)
+	m.HandleFunc("POST /reset/{token}", a.resetPost)
+	m.HandleFunc("GET /account", a.requireUser(a.accountGet))
+	m.HandleFunc("POST /account", a.requireUser(a.accountPost))
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

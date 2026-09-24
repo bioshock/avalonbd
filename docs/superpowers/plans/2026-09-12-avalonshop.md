@@ -6067,7 +6067,7 @@ git commit -m "feat(shop): checkout with zone fees, order page, confirmation ema
 - Consumes: `store.CreateUser`, `GetUserByEmail`, `GetUser`, `UpdateProfile`, `UpdatePassword`, `ListOrdersByUser`; `a.tok.ResetToken/ParseReset`; `a.login/logout`; `a.loginLimit`, `a.forgotLimit`; `mail.Send`.
 - Produces: routes `GET|POST /login`, `GET|POST /register`, `POST /logout`, `GET|POST /forgot`, `GET|POST /reset/{token}`, `GET|POST /account`; `(*App) requireUser(h http.HandlerFunc) http.HandlerFunc` (redirects to `/login?next=`), `safeNext(s) string`. Admin login goes through the same `/login`; admins land on `/admin`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/auth_test.go`:
 
@@ -6237,12 +6237,12 @@ func TestAccountProfileAndOrders(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run 'Register|LoginRate|Forgot|AccountProfile'`
 Expected: FAIL (404s and undefined helpers)
 
-- [ ] **Step 3: Write auth.go**
+- [x] **Step 3: Write auth.go**
 
 ```go
 package app
@@ -6492,7 +6492,7 @@ func (a *App) accountPost(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -6510,7 +6510,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("POST /account", a.requireUser(a.accountPost))
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/store/login.html`:
 
@@ -6607,12 +6607,12 @@ In `routes()`, above the `/` fallback:
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop

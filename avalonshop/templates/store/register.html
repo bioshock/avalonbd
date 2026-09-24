@@ -1,0 +1,12 @@
+{{define "content"}}{{$f := .Data}}
+<p class="eyebrow">Account</p>
+<h1>Create an account</h1>
+<p class="help">Optional. It saves your address and shows your order history. You can always check out as a guest.</p>
+<form class="form" method="post" action="/register">
+  <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{$f.Name}}" required autocomplete="name">{{with $f.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
+  <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{$f.Email}}" required autocomplete="email">{{with $f.Errors.email}}<p class="err">{{.}}</p>{{end}}</div>
+  <div class="field"><label for="password">Password</label><input id="password" type="password" name="password" required minlength="8" autocomplete="new-password">{{with $f.Errors.password}}<p class="err">{{.}}</p>{{end}}</div>
+  <button class="btn" type="submit">Create account</button>
+</form>
+<p class="help">Already have one? <a href="/login">Log in</a></p>
+{{end}}

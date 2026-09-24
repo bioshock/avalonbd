@@ -1,0 +1,13 @@
+{{define "content"}}{{$f := .Data}}
+<p class="eyebrow">Account</p>
+<h1>Choose a new password</h1>
+{{if $f.Invalid}}
+<div class="errbox" role="alert">This reset link is invalid or has expired.</div>
+<p><a class="btn ghost" href="/forgot">Request a new link</a></p>
+{{else}}
+<form class="form" method="post">
+  <div class="field"><label for="password">New password</label><input id="password" type="password" name="password" required minlength="8" autocomplete="new-password">{{with $f.Errors.password}}<p class="err">{{.}}</p>{{end}}</div>
+  <button class="btn" type="submit">Save password</button>
+</form>
+{{end}}
+{{end}}

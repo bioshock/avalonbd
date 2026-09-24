@@ -1,0 +1,9 @@
+{{define "content"}}{{$f := .Data}}
+<p class="eyebrow">Account</p>
+<h1>Reset your password</h1>
+{{with $f.Errors.form}}<div class="errbox" role="alert">{{.}}</div>{{end}}
+<form class="form" method="post" action="/forgot">
+  <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" required autocomplete="email"></div>
+  <button class="btn" type="submit">Send reset link</button>
+</form>
+{{end}}

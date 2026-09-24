@@ -1,0 +1,24 @@
+{{define "content"}}{{$d := .Data}}
+<p class="eyebrow">Account</p>
+<h1>Hi, {{$d.User.Name}}</h1>
+<div class="cart-page">
+  <div>
+    <h2>Your orders</h2>
+    {{if $d.Orders}}<div class="table-wrap"><table>
+      <thead><tr><th>Order</th><th>Date</th><th>Status</th><th class="num">Total</th></tr></thead>
+      <tbody>{{range $d.Orders}}<tr><td><a href="/orders/{{.Number}}">{{.Number}}</a></td><td>{{dhaka .CreatedAt}}</td><td><span class="status {{.Status}}">{{.Status}}</span></td><td class="num">{{taka .Total}}</td></tr>{{end}}</tbody>
+    </table></div>
+    {{else}}<p class="empty">No orders yet. <a href="/products">Start shopping</a></p>{{end}}
+  </div>
+  <aside class="panel">
+    <h2>Delivery details</h2>
+    <form method="post" action="/account">
+      <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{index $d.Form "name"}}" required>{{with index $d.Errors "name"}}<p class="err">{{.}}</p>{{end}}</div>
+      <div class="field"><label for="phone">Mobile</label><input id="phone" type="tel" name="phone" value="{{index $d.Form "phone"}}">{{with index $d.Errors "phone"}}<p class="err">{{.}}</p>{{end}}</div>
+      <div class="field"><label for="address">Address</label><textarea id="address" name="address">{{index $d.Form "address"}}</textarea>{{with index $d.Errors "address"}}<p class="err">{{.}}</p>{{end}}</div>
+      <button class="btn" type="submit">Save</button>
+    </form>
+    <form method="post" action="/logout"><button class="btn ghost sm" type="submit">Log out</button></form>
+  </aside>
+</div>
+{{end}}
