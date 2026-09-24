@@ -94,6 +94,48 @@ func TestCheckoutValidationAndOversell(t *testing.T) {
 	}
 }
 
+// TestCheckoutInactiveZone covers the finding from the Task 13 review: a
+// zone_id that names a real but inactive zone must 422 with the customer's
+// other fields and cart intact, not silently drop the order to /cart.
+func TestCheckoutInactiveZone(t *testing.T) {
+	a, st, cart, _ := checkoutFixture(t)
+	inactive, err := st.CreateZone(context.Background(), store.Zone{Name: "Sylhet", Fee: 80, Active: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(inactive, "01712345678")), "Cookie", "cart="+cart)
+	body := w.Body.String()
+	if w.Code != 422 || !strings.Contains(body, "no longer available") {
+		t.Fatalf("inactive zone: %d\n%s", w.Code, body)
+	}
+	if !strings.Contains(body, "Ana") || !strings.Contains(body, "House 1, Road 2, Rajshahi") {
+		t.Fatalf("submitted name/address should survive the re-render:\n%s", body)
+	}
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "cart" && c.MaxAge == -1 {
+			t.Fatal("cart cookie must not be cleared when the zone is rejected")
+		}
+	}
+	orders, err := st.ListOrders(context.Background(), "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orders) != 0 {
+		t.Fatalf("no order should have been created, got %d", len(orders))
+	}
+}
+
+// TestCheckoutTotalsNoJS covers decision 1: without the HX-Request header,
+// GET /checkout/totals redirects to the full checkout page instead of
+// returning a bare fragment.
+func TestCheckoutTotalsNoJS(t *testing.T) {
+	a, _, cart, zone := checkoutFixture(t)
+	w := do(t, a, "GET", "/checkout/totals?zone_id="+itoa(zone), nil, "Cookie", "cart="+cart)
+	if w.Code != 303 || w.Header().Get("Location") != "/checkout" {
+		t.Fatalf("no-JS totals should redirect to /checkout: %d %s", w.Code, w.Header().Get("Location"))
+	}
+}
+
 func TestCheckoutRateLimit(t *testing.T) {
 	a, _, cart, zone := checkoutFixture(t)
 	a.checkoutLimit = newLimiter(1, time.Hour)

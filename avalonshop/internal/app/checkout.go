@@ -175,7 +175,7 @@ func (a *App) checkoutPost(w http.ResponseWriter, r *http.Request) {
 		a.checkoutView(w, r, f, http.StatusUnprocessableEntity, "Please fix the highlighted fields.")
 		return
 	}
-	_, kept, err := a.loadCart(w, r)
+	v, kept, err := a.loadCart(w, r)
 	if err != nil {
 		a.serverError(w, r, err)
 		return
@@ -183,6 +183,17 @@ func (a *App) checkoutPost(w http.ResponseWriter, r *http.Request) {
 	if len(kept) == 0 {
 		a.setFlash(w, "Your cart is empty.")
 		http.Redirect(w, r, "/cart", http.StatusSeeOther)
+		return
+	}
+	// Confirm the chosen zone is still active before placing the order: a zone
+	// deactivated between page render and submit must re-render the form (with
+	// the customer's other fields intact) rather than silently drop to /cart.
+	if _, totals, err := a.zoneTotals(r.Context(), v.Subtotal, f.ZoneID); err != nil {
+		a.serverError(w, r, err)
+		return
+	} else if !totals.HasZone {
+		f.Errors["zone_id"] = "This delivery area is no longer available. Please choose another."
+		a.checkoutView(w, r, f, http.StatusUnprocessableEntity, "Please fix the highlighted fields.")
 		return
 	}
 	in := store.NewOrder{Name: f.Name, Phone: f.Phone, Email: f.Email, Address: f.Address, Note: f.Note, ZoneID: f.ZoneID}
