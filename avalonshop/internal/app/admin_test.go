@@ -44,26 +44,64 @@ func TestAdminAccess(t *testing.T) {
 // instead of shipping silently: a single-route check like the one above
 // stayed green when a reviewer removed adm(...) from the category delete
 // route and left it reachable by a logged-out curl.
+//
+// Path placeholders ({cid}, {zid}, {pid}, {iid}) are substituted with real
+// row ids by TestAdminRoutesRequireAdmin before probing, rather than a
+// literal "1". Several id-taking handlers correctly return a genuine 404 for
+// store.ErrNotFound (task-17-decisions #3), which makes a nonexistent id
+// indistinguishable from "not an admin": with a literal "1" and no such row,
+// removing adm(...) from POST /admin/images/{id}/delete still 404'd (via the
+// handler's own DeleteImage -> ErrNotFound path) and this test stayed green.
+// Pointing every placeholder at a row that actually exists means a 404 here
+// can only come from authorization.
 var adminRoutes = [][2]string{
 	{"GET", "/admin"},
 	{"GET", "/admin/categories"}, {"POST", "/admin/categories"},
-	{"POST", "/admin/categories/1"}, {"POST", "/admin/categories/1/delete"},
+	{"POST", "/admin/categories/{cid}"}, {"POST", "/admin/categories/{cid}/delete"},
 	{"GET", "/admin/zones"}, {"POST", "/admin/zones"},
-	{"POST", "/admin/zones/1"}, {"POST", "/admin/zones/1/delete"},
+	{"POST", "/admin/zones/{zid}"}, {"POST", "/admin/zones/{zid}/delete"},
 	{"GET", "/admin/products"},
 	{"GET", "/admin/products/new"}, {"POST", "/admin/products/new"},
 	{"GET", "/admin/products/variant-row"},
-	{"GET", "/admin/products/1"}, {"POST", "/admin/products/1"},
-	{"POST", "/admin/products/1/delete"}, {"POST", "/admin/products/1/images"},
-	{"POST", "/admin/images/1"}, {"POST", "/admin/images/1/move"}, {"POST", "/admin/images/1/delete"},
+	{"GET", "/admin/products/{pid}"}, {"POST", "/admin/products/{pid}"},
+	{"POST", "/admin/products/{pid}/delete"}, {"POST", "/admin/products/{pid}/images"},
+	{"POST", "/admin/images/{iid}"}, {"POST", "/admin/images/{iid}/move"}, {"POST", "/admin/images/{iid}/delete"},
 }
 
 func TestAdminRoutesRequireAdmin(t *testing.T) {
 	a, st := newDBApp(t)
-	cust, _ := st.CreateUser(context.Background(), "cust@example.com", "x", "C", "customer")
+	ctx := context.Background()
+	cust, _ := st.CreateUser(ctx, "cust@example.com", "x", "C", "customer")
 	custCookie := sessionCookie(t, a, cust.ID)
+
+	// Seed one real row behind every placeholder above. None of these probes
+	// should ever reach a handler body when adm(...) is present (every one
+	// 404s at the wrapper), so this data is never mutated by a passing run.
+	cid, err := st.CreateCategory(ctx, store.Category{Name: "Cat", Slug: "cat"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	zid, err := st.CreateZone(ctx, store.Zone{Name: "Zone", Fee: 0, Active: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, err := st.CreateProduct(ctx, store.Product{Slug: "p", Name: "P", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	iid, err := st.AddImage(ctx, store.Image{ProductID: pid, File: "seed", Width: 10, Height: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	replace := strings.NewReplacer(
+		"{cid}", itoa(cid),
+		"{zid}", itoa(zid),
+		"{pid}", itoa(pid),
+		"{iid}", itoa(iid),
+	)
+
 	for _, rt := range adminRoutes {
-		method, path := rt[0], rt[1]
+		method, path := rt[0], replace.Replace(rt[1])
 		body := url.Values{"name": {"pwn"}, "fee": {"0"}}.Encode()
 		if w := do(t, a, method, path, strings.NewReader(body)); w.Code != 404 {
 			t.Errorf("logged out %s %s -> %d, want 404", method, path, w.Code)
