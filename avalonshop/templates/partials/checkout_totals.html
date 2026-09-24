@@ -1,0 +1,5 @@
+<div class="totals">
+  <span>Subtotal</span><span class="mono">{{taka .Subtotal}}</span>
+  <span>Delivery</span><span class="mono">{{if .HasZone}}{{taka .Fee}}{{else}}—{{end}}</span>
+  <span class="big">Total</span><span class="big price">{{taka .Total}}</span>
+</div>

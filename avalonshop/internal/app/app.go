@@ -81,6 +81,10 @@ func (a *App) routes() {
 	m.HandleFunc("GET /cart/drawer", a.cartDrawer)
 	m.HandleFunc("POST /cart/items", a.cartAdd)
 	m.HandleFunc("POST /cart/items/{id}", a.cartUpdate)
+	m.HandleFunc("GET /checkout", a.checkoutGet)
+	m.HandleFunc("POST /checkout", a.checkoutPost)
+	m.HandleFunc("GET /checkout/totals", a.checkoutTotals)
+	m.HandleFunc("GET /orders/{number}", a.orderPage)
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

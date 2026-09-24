@@ -5583,7 +5583,7 @@ git commit -m "feat(shop): cookie cart with HTMX drawer and cart page"
 - Consumes: `a.loadCart`/`a.buildCart` (Task 12), `store.PlaceOrder`, `store.ListZones`, `store.GetOrderByNumber`, `a.tok.OrderToken`, `mail.Send`, `a.checkoutLimit`.
 - Produces: routes `GET /checkout`, `POST /checkout`, `GET /checkout/totals?zone_id=`, `GET /orders/{number}?t=`; `normalizePhone(s) (string, bool)`, `validEmail(s) bool`, `(*App) orderURL(number) string`, `(*App) orderMailData(store.OrderFull) map[string]any`, `(*App) sendOrderMails(o store.OrderFull, customerTmpl, adminTmpl string)` (Task 18 reuses this for shipped/delivered), `totalsView{Subtotal, Fee, Total int; HasZone bool}`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/checkout_test.go`:
 
@@ -5712,12 +5712,12 @@ func TestPhoneAndEmail(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run 'Checkout|Phone'`
 Expected: FAIL, `undefined: normalizePhone`
 
-- [ ] **Step 3: Write checkout.go**
+- [x] **Step 3: Write checkout.go**
 
 ```go
 package app
@@ -5961,7 +5961,7 @@ func (a *App) orderPage(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -5972,7 +5972,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("GET /orders/{number}", a.orderPage)
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/partials/checkout_totals.html`:
 
@@ -6043,12 +6043,12 @@ In `routes()`, above the `/` fallback:
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
