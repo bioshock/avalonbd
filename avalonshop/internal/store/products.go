@@ -66,7 +66,7 @@ type AdminProductRow struct {
 	Slug         string
 	Name         string
 	Category     string
-	VariantCount int  `db:"variant_count"`
+	VariantCount int `db:"variant_count"`
 	Active       bool
 	Featured     bool
 	ImageFile    *string `db:"image_file"`
@@ -261,11 +261,11 @@ func (s *Store) ActiveProductsForSitemap(ctx context.Context) ([]SitemapEntry, e
 
 // CartVariant is everything the cart needs to show one line.
 type CartVariant struct {
-	VariantID   int64   `db:"variant_id"`
-	ProductID   int64   `db:"product_id"`
-	ProductSlug string  `db:"product_slug"`
-	ProductName string  `db:"product_name"`
-	VariantName string  `db:"variant_name"`
+	VariantID   int64  `db:"variant_id"`
+	ProductID   int64  `db:"product_id"`
+	ProductSlug string `db:"product_slug"`
+	ProductName string `db:"product_name"`
+	VariantName string `db:"variant_name"`
 	Price       int
 	Stock       int
 	Active      bool
