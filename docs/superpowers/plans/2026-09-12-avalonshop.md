@@ -3203,7 +3203,7 @@ git commit -m "feat(shop): image pipeline with EXIF orientation and WebP variant
   - `password_reset`: `map[string]any{"Name": string, "ResetURL": string}`
 - Templates get a `taka` function.
 
-- [ ] **Step 1: Write the email templates**
+- [x] **Step 1: Write the email templates**
 
 Each template's first line is `Subject: ...`, then a blank line, then the body.
 
@@ -3297,7 +3297,7 @@ Use this link within one hour to set a new password:
 If you didn't ask for this, ignore this email.
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `avalonshop/internal/mail/mail_test.go`:
 
@@ -3350,12 +3350,12 @@ func TestBuildMessage(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `go test ./internal/mail/`
 Expected: FAIL, `undefined: New`
 
-- [ ] **Step 4: Write mail.go**
+- [x] **Step 4: Write mail.go**
 
 ```go
 // Package mail renders plain-text templates and sends them over SMTP.
@@ -3445,12 +3445,12 @@ func buildMessage(from, to, subject, body string) []byte {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `go test ./internal/mail/`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add avalonshop

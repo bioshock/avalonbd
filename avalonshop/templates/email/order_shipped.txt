@@ -1,0 +1,9 @@
+Subject: Order {{.Order.Number}} is on its way — Avalon
+
+Hi {{.Order.Name}},
+
+Your order {{.Order.Number}} has been handed to delivery. Please keep {{taka .Order.Total}} ready in cash.
+
+Track: {{.TrackURL}}
+
+Avalon Corporation · Rajshahi

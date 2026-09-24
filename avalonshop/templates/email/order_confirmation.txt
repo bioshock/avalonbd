@@ -1,0 +1,18 @@
+Subject: Order {{.Order.Number}} received — Avalon
+
+Hi {{.Order.Name}},
+
+Thanks for your order. We'll call {{.Order.Phone}} to confirm before delivery.
+
+Order {{.Order.Number}}
+{{range .Items}}- {{.ProductName}} ({{.VariantName}}) × {{.Qty}} — {{taka .UnitPrice}} each
+{{end}}Subtotal: {{taka .Order.Subtotal}}
+Delivery ({{.Order.ZoneName}}): {{taka .Order.DeliveryFee}}
+Total (cash on delivery): {{taka .Order.Total}}
+
+Deliver to:
+{{.Order.Address}}
+
+Track your order: {{.TrackURL}}
+
+Avalon Corporation · Rajshahi
