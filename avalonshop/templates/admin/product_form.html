@@ -1,0 +1,37 @@
+{{define "content"}}{{$d := .Data}}{{$p := $d.Product}}
+<h1>{{if $d.IsNew}}New product{{else}}{{$p.Name}}{{end}}</h1>
+<form class="form wide" method="post" action="{{if $d.IsNew}}/admin/products/new{{else}}/admin/products/{{$p.ID}}{{end}}">
+  <div class="row">
+    <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{$p.Name}}" required>{{with $d.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
+    <div class="field"><label for="slug">URL slug</label><input id="slug" type="text" name="slug" value="{{$p.Slug}}" placeholder="auto from name"><p class="help">Lowercase letters, numbers, hyphens. Changing it breaks old links.</p></div>
+  </div>
+  <div class="row">
+    <div class="field"><label for="category_id">Category</label><select id="category_id" name="category_id"><option value="">— none —</option>{{range $d.Categories}}<option value="{{.ID}}"{{if and $p.CategoryID (eq .ID (derefInt64 $p.CategoryID))}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+    <div class="field"><label class="check"><input type="checkbox" name="active"{{if $p.Active}} checked{{end}}> Active (visible in the shop)</label><label class="check"><input type="checkbox" name="featured"{{if $p.Featured}} checked{{end}}> Featured on the home page</label></div>
+  </div>
+  <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="8">{{$p.Description}}</textarea><p class="help">Plain text. Line breaks are kept.</p></div>
+  <div class="field"><label for="meta_description">Meta description (search snippet)</label><input id="meta_description" type="text" name="meta_description" value="{{$p.MetaDescription}}" maxlength="160"><p class="help">Up to 160 characters. Leave empty to use the start of the description.</p>{{with $d.Errors.meta_description}}<p class="err">{{.}}</p>{{end}}</div>
+
+  <h2>Variants</h2>
+  {{with $d.Errors.variants}}<div class="errbox" role="alert">{{.}}</div>{{end}}
+  <div class="table-wrap"><table class="variants" id="variants">
+    <thead><tr><th>Name</th><th>SKU</th><th>Price (৳)</th><th>Stock</th><th>Sort</th><th></th></tr></thead>
+    <tbody>{{range $d.Variants}}{{template "variant_row.html" .}}{{end}}</tbody>
+  </table></div>
+  <p><button class="btn sm ghost" type="button" hx-get="/admin/products/variant-row" hx-target="#variants tbody" hx-swap="beforeend">Add variant</button></p>
+  <button class="btn" type="submit">{{if $d.IsNew}}Create product{{else}}Save changes{{end}}</button>
+  {{if not $d.IsNew}} <a class="btn ghost" href="/products/{{$p.Slug}}">View in shop</a>{{end}}
+</form>
+
+{{if not $d.IsNew}}
+<h2>Photos</h2>
+<form class="form" method="post" action="/admin/products/{{$p.ID}}/images" enctype="multipart/form-data" hx-post="/admin/products/{{$p.ID}}/images" hx-encoding="multipart/form-data" hx-target="#images" hx-swap="innerHTML">
+  <div class="field"><label for="images">Add photos (JPEG, PNG, WebP or GIF, up to 10 MB each)</label><input id="images" type="file" name="images" accept="image/jpeg,image/png,image/webp,image/gif" multiple required></div>
+  <button class="btn sm" type="submit">Upload</button>
+</form>
+<div id="images">{{template "image_list.html" (imageListData $p.ID $d.Images)}}</div>
+
+<h2>Danger zone</h2>
+<form method="post" action="/admin/products/{{$p.ID}}/delete" hx-post="/admin/products/{{$p.ID}}/delete" hx-confirm="Delete “{{$p.Name}}” and all its photos?"><button class="btn danger sm" type="submit">Delete product</button></form>
+{{end}}
+{{end}}

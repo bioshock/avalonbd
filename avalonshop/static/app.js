@@ -50,6 +50,9 @@
       inp.value = Math.min(Math.max(v, lo), hi);
       inp.dispatchEvent(new Event('change', { bubbles: true }));
     }
+
+    var rm = e.target.closest('[data-remove-row]');
+    if (rm) { rm.closest('tr').remove(); }
   });
 
   document.addEventListener('change', function (e) {

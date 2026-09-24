@@ -50,6 +50,12 @@ var adminRoutes = [][2]string{
 	{"POST", "/admin/categories/1"}, {"POST", "/admin/categories/1/delete"},
 	{"GET", "/admin/zones"}, {"POST", "/admin/zones"},
 	{"POST", "/admin/zones/1"}, {"POST", "/admin/zones/1/delete"},
+	{"GET", "/admin/products"},
+	{"GET", "/admin/products/new"}, {"POST", "/admin/products/new"},
+	{"GET", "/admin/products/variant-row"},
+	{"GET", "/admin/products/1"}, {"POST", "/admin/products/1"},
+	{"POST", "/admin/products/1/delete"}, {"POST", "/admin/products/1/images"},
+	{"POST", "/admin/images/1"}, {"POST", "/admin/images/1/move"}, {"POST", "/admin/images/1/delete"},
 }
 
 func TestAdminRoutesRequireAdmin(t *testing.T) {

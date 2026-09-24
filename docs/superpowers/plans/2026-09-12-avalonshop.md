@@ -7198,7 +7198,7 @@ git commit -m "feat(shop): admin access control, dashboard, categories, delivery
 - Consumes: `store.ListProductsAdmin`, `GetProduct`, `CreateProduct`, `UpdateProduct`, `DeleteProduct`, `UniqueSlug`, `Slugify`, image methods, `img.Process`, `img.Remove`.
 - Produces: routes `GET /admin/products`, `GET /admin/products/new`, `POST /admin/products/new`, `GET /admin/products/variant-row`, `GET /admin/products/{id}`, `POST /admin/products/{id}`, `POST /admin/products/{id}/delete`, `POST /admin/products/{id}/images` (multipart field `images`, up to 10 files, 10 MB each), `POST /admin/images/{id}` (form `alt`, `product_id`), `POST /admin/images/{id}/move` (form `dir` = up|down, `product_id`), `POST /admin/images/{id}/delete`; `parseProductForm(r) (store.Product, []store.Variant, map[string]string)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/admin_products_test.go`:
 
@@ -7381,12 +7381,12 @@ func TestAdminProductDeleteRefusedWhenOrdered(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run AdminProduct`
 Expected: FAIL (404s)
 
-- [ ] **Step 3: Write admin_products.go**
+- [x] **Step 3: Write admin_products.go**
 
 ```go
 package app
@@ -7689,7 +7689,7 @@ func (a *App) adminImageDelete(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, after the zone routes:
 
@@ -7707,7 +7707,7 @@ In `routes()`, after the zone routes:
 	m.HandleFunc("POST /admin/images/{id}/delete", adm(a.adminImageDelete))
 ```
 
-- [ ] **Step 5: Small static additions**
+- [x] **Step 5: Small static additions**
 
 Append to `static/app.js` inside the `click` listener, before its closing brace:
 
@@ -7724,7 +7724,7 @@ Append to `static/app.css`:
 .imgs form input[type=text]{margin:.4rem 0 .3rem}
 ```
 
-- [ ] **Step 6: Write the templates**
+- [x] **Step 6: Write the templates**
 
 `avalonshop/templates/partials/variant_row.html`:
 
@@ -7829,7 +7829,7 @@ Add two funcs to `funcs()` in `render.go`:
 		},
 ```
 
-- [ ] **Step 7: Run to verify it passes, then commit**
+- [x] **Step 7: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS

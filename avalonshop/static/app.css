@@ -183,5 +183,8 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 .imgs img{aspect-ratio:1;object-fit:cover;border-radius:6px;width:100%}
 .imgs .acts{display:flex;gap:.25rem;margin-top:.4rem}
 .imgs .acts button{flex:1}
+.imgs .acts form{flex:1;margin:0}
+.imgs .acts button{width:100%}
+.imgs form input[type=text]{margin:.4rem 0 .3rem}
 
 @media(prefers-reduced-motion:reduce){.drawer,.scrim,.card{transition:none}.card:hover{transform:none}}

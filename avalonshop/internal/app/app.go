@@ -108,6 +108,17 @@ func (a *App) routes() {
 	m.HandleFunc("POST /admin/zones", adm(a.adminZoneCreate))
 	m.HandleFunc("POST /admin/zones/{id}", adm(a.adminZoneUpdate))
 	m.HandleFunc("POST /admin/zones/{id}/delete", adm(a.adminZoneDelete))
+	m.HandleFunc("GET /admin/products", adm(a.adminProducts))
+	m.HandleFunc("GET /admin/products/new", adm(a.adminProductNew))
+	m.HandleFunc("POST /admin/products/new", adm(a.adminProductCreate))
+	m.HandleFunc("GET /admin/products/variant-row", adm(a.adminVariantRow))
+	m.HandleFunc("GET /admin/products/{id}", adm(a.adminProductEdit))
+	m.HandleFunc("POST /admin/products/{id}", adm(a.adminProductUpdate))
+	m.HandleFunc("POST /admin/products/{id}/delete", adm(a.adminProductDelete))
+	m.HandleFunc("POST /admin/products/{id}/images", adm(a.adminImagesUpload))
+	m.HandleFunc("POST /admin/images/{id}", adm(a.adminImageAlt))
+	m.HandleFunc("POST /admin/images/{id}/move", adm(a.adminImageMove))
+	m.HandleFunc("POST /admin/images/{id}/delete", adm(a.adminImageDelete))
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

@@ -1,0 +1,14 @@
+{{define "content"}}
+<div class="toolbar"><h1>Products</h1><a class="btn sm" href="/admin/products/new">New product</a></div>
+<div class="table-wrap"><table>
+<thead><tr><th></th><th>Name</th><th>Category</th><th class="num">Variants</th><th>Status</th><th></th></tr></thead>
+<tbody>{{range .Data}}<tr>
+  <td>{{if .ImageFile}}<img class="thumb" src="{{imgURL (deref .ImageFile) 400}}" width="48" height="48" alt="" loading="lazy">{{else}}<div class="thumb"></div>{{end}}</td>
+  <td><a href="/admin/products/{{.ID}}">{{.Name}}</a><br><span class="muted mono">/products/{{.Slug}}</span></td>
+  <td>{{.Category}}</td>
+  <td class="num">{{.VariantCount}}</td>
+  <td>{{if .Active}}<span class="status delivered">active</span>{{else}}<span class="status cancelled">inactive</span>{{end}} {{if .Featured}}<span class="status">featured</span>{{end}}</td>
+  <td><a href="/products/{{.Slug}}" class="help">View</a></td>
+</tr>{{else}}<tr><td colspan="6" class="empty">No products yet.</td></tr>{{end}}</tbody>
+</table></div>
+{{end}}

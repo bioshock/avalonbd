@@ -61,10 +61,19 @@ func (a *App) funcs() template.FuncMap {
 			}
 			return *p
 		},
+		"derefInt64": func(p *int64) int64 {
+			if p == nil {
+				return 0
+			}
+			return *p
+		},
 		"add":       func(x, y int) int { return x + y },
 		"mul":       func(x, y int) int { return x * y },
 		"hasPrefix": strings.HasPrefix,
 		"cardData":  func(c store.ProductCard, i int) map[string]any { return map[string]any{"C": c, "Eager": i < 4} },
+		"imageListData": func(productID int64, imgs []store.Image) map[string]any {
+			return map[string]any{"ProductID": productID, "Images": imgs, "Errors": []string(nil)}
+		},
 	}
 }
 
