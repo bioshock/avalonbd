@@ -13,7 +13,7 @@
 <thead><tr><th>Name</th><th>Fee</th><th>Active</th><th>Sort</th><th></th></tr></thead>
 <tbody>{{range .Data}}<tr>
   <td><input form="z{{.ID}}" type="text" name="name" value="{{.Name}}" aria-label="Name"></td>
-  <td><input form="z{{.ID}}" type="number" name="fee" min="0" value="{{.Fee}}" aria-label="Fee"></td>
+  <td><input form="z{{.ID}}" type="number" name="fee" min="0" value="{{.Fee}}" required aria-label="Fee"></td>
   <td><input form="z{{.ID}}" type="checkbox" name="active"{{if .Active}} checked{{end}} aria-label="Active"></td>
   <td><input form="z{{.ID}}" type="number" name="sort" value="{{.Sort}}" aria-label="Sort"></td>
   <td><button form="z{{.ID}}" class="btn sm" type="submit">Save</button> <button form="dz{{.ID}}" class="btn sm ghost" type="submit">Delete</button></td>

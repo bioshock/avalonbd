@@ -38,6 +38,36 @@ func TestAdminAccess(t *testing.T) {
 	}
 }
 
+// adminRoutes is every route requireAdmin must wrap. Kept table-driven, not a
+// single spot-check, so that an unwrapped route (this task's own mistake, or
+// one of Tasks 17/18's nine more hand-typed adm(...) calls) fails a test
+// instead of shipping silently: a single-route check like the one above
+// stayed green when a reviewer removed adm(...) from the category delete
+// route and left it reachable by a logged-out curl.
+var adminRoutes = [][2]string{
+	{"GET", "/admin"},
+	{"GET", "/admin/categories"}, {"POST", "/admin/categories"},
+	{"POST", "/admin/categories/1"}, {"POST", "/admin/categories/1/delete"},
+	{"GET", "/admin/zones"}, {"POST", "/admin/zones"},
+	{"POST", "/admin/zones/1"}, {"POST", "/admin/zones/1/delete"},
+}
+
+func TestAdminRoutesRequireAdmin(t *testing.T) {
+	a, st := newDBApp(t)
+	cust, _ := st.CreateUser(context.Background(), "cust@example.com", "x", "C", "customer")
+	custCookie := sessionCookie(t, a, cust.ID)
+	for _, rt := range adminRoutes {
+		method, path := rt[0], rt[1]
+		body := url.Values{"name": {"pwn"}, "fee": {"0"}}.Encode()
+		if w := do(t, a, method, path, strings.NewReader(body)); w.Code != 404 {
+			t.Errorf("logged out %s %s -> %d, want 404", method, path, w.Code)
+		}
+		if w := do(t, a, method, path, strings.NewReader(body), "Cookie", custCookie); w.Code != 404 {
+			t.Errorf("customer %s %s -> %d, want 404", method, path, w.Code)
+		}
+	}
+}
+
 func TestAdminCategories(t *testing.T) {
 	a, st := newDBApp(t)
 	adm := adminSession(t, a, st)
@@ -97,8 +127,23 @@ func TestAdminZones(t *testing.T) {
 		t.Fatalf("update (unchecked active must become false): %d %+v", w.Code, z2)
 	}
 	w = do(t, a, "POST", "/admin/zones", strings.NewReader(url.Values{"name": {"X"}, "fee": {"-5"}}.Encode()), "Cookie", adm)
-	if w.Code != 303 || !strings.Contains(cookieHeader(w, "flash"), "fee") {
-		t.Fatalf("negative fee should be rejected with a flash: %d", w.Code)
+	flash, _ := url.QueryUnescape(cookieHeader(w, "flash"))
+	// Assert on our own validation message, not just a substring ("fee") that
+	// a raw Postgres constraint-violation error would also happen to contain
+	// if the `fee < 0` check were ever deleted.
+	if w.Code != 303 || !strings.Contains(flash, "0 or more") {
+		t.Fatalf("negative fee should be rejected with a flash: %d %q", w.Code, flash)
+	}
+	// A blank fee must not silently save as ৳0: it's a field error, and the
+	// existing fee is left untouched.
+	w = do(t, a, "POST", "/admin/zones/"+itoa(z.ID), strings.NewReader(url.Values{"name": {"Rajshahi City"}, "fee": {""}, "sort": {"1"}}.Encode()), "Cookie", adm)
+	flash, _ = url.QueryUnescape(cookieHeader(w, "flash"))
+	if w.Code != 303 || !strings.Contains(flash, "required") {
+		t.Fatalf("blank fee should be rejected with a flash: %d %q", w.Code, flash)
+	}
+	z3, _ := st.GetZone(ctx, z.ID)
+	if z3.Fee != 70 {
+		t.Fatalf("blank fee must not change the existing fee: %+v", z3)
 	}
 	do(t, a, "POST", "/admin/zones/"+itoa(z.ID)+"/delete", nil, "Cookie", adm)
 	if _, err := st.GetZone(ctx, z.ID); err == nil {

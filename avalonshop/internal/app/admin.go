@@ -142,6 +142,9 @@ func zoneFromForm(r *http.Request, id int64) (store.Zone, string) {
 	if z.Name == "" {
 		return z, "Name is required."
 	}
+	if strings.TrimSpace(r.FormValue("fee")) == "" {
+		return z, "Delivery fee is required."
+	}
 	fee, ok := formInt(r, "fee")
 	if !ok || fee < 0 {
 		return z, "Delivery fee must be a whole number of taka, 0 or more."
