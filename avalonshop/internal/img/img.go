@@ -95,7 +95,7 @@ func Process(data []byte, dir string) (Result, error) {
 		f, err := os.Create(filepath.Join(dir, Filename(res.Stem, w)))
 		if err == nil {
 			err = webp.Encode(f, m, webp.Options{Quality: quality})
-			f.Close()
+			err = errors.Join(err, f.Close())
 		}
 		if err != nil {
 			Remove(dir, res.Stem, targets[len(targets)-1])
