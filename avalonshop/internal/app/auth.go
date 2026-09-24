@@ -17,9 +17,17 @@ import (
 
 const bcryptCost = 12
 
-// dummyHash keeps login timing uniform when the email is unknown.
+// dummyHash keeps login timing uniform when the email is unknown. It is
+// computed once and cached. A swallowed error here would cache an empty
+// string forever: bcrypt.CompareHashAndPassword("") fails in microseconds
+// instead of doing real work, turning the unknown-email path into a timing
+// oracle on exactly the property spec §11 asks for — so a generation failure
+// panics loudly instead of silently degrading to an instant compare.
 var dummyHash = sync.OnceValue(func() string {
-	h, _ := bcrypt.GenerateFromPassword([]byte("avalon-dummy-password"), bcryptCost)
+	h, err := bcrypt.GenerateFromPassword([]byte("avalon-dummy-password"), bcryptCost)
+	if err != nil {
+		panic("auth: failed to generate dummy bcrypt hash: " + err.Error())
+	}
 	return string(h)
 })
 
@@ -29,12 +37,24 @@ type authForm struct {
 	Invalid           bool // reset: token bad or expired
 }
 
-// safeNext only allows same-site relative paths, blocking //evil.com redirects.
+// safeNext only allows same-site relative paths. It parses (not just prefix-
+// matches) the input so control characters — an ASCII tab, CR or LF, which a
+// browser's URL parser silently strips before resolving the redirect
+// (turning "/\t/evil.com" into "//evil.com") — are rejected outright by
+// url.Parse instead of slipping past a prefix check. The "//" and "/\"
+// prefix checks stay alongside it: browsers treat a leading backslash as a
+// path separator for special schemes, so "/\evil.com" also resolves as
+// protocol-relative, and net/url (unlike a browser's WHATWG parser) does not
+// flag that on its own.
 func safeNext(s string) string {
-	if strings.HasPrefix(s, "/") && !strings.HasPrefix(s, "//") && !strings.HasPrefix(s, "/\\") {
-		return s
+	if strings.HasPrefix(s, "//") || strings.HasPrefix(s, "/\\") {
+		return ""
 	}
-	return ""
+	u, err := url.Parse(s)
+	if err != nil || u.Scheme != "" || u.Host != "" || !strings.HasPrefix(u.Path, "/") {
+		return ""
+	}
+	return s
 }
 
 func (a *App) requireUser(h http.HandlerFunc) http.HandlerFunc {
@@ -105,7 +125,17 @@ func (a *App) registerGet(w http.ResponseWriter, r *http.Request) {
 	a.authPage(w, r, http.StatusOK, "register", "Create account", authForm{Errors: map[string]string{}})
 }
 
-func validPassword(pw string) bool { return utf8.RuneCountInString(pw) >= 8 && len(pw) <= 200 }
+// validPassword bounds the minimum in runes and the maximum in bytes: bcrypt
+// (golang.org/x/crypto/bcrypt) rejects any input over 72 bytes with
+// ErrPasswordTooLong, and a multi-byte passphrase (Bangla, emoji, ...) can
+// pass a rune-only minimum while still exceeding that byte cap.
+const maxPasswordBytes = 72
+
+var passwordLengthMsg = "Use at least 8 characters, and no more than 72 bytes — long non-Latin passphrases can hit that limit."
+
+func validPassword(pw string) bool {
+	return utf8.RuneCountInString(pw) >= 8 && len(pw) <= maxPasswordBytes
+}
 
 func (a *App) registerPost(w http.ResponseWriter, r *http.Request) {
 	f := authForm{Email: strings.TrimSpace(strings.ToLower(r.FormValue("email"))), Name: strings.TrimSpace(r.FormValue("name")), Errors: map[string]string{}}
@@ -117,7 +147,7 @@ func (a *App) registerPost(w http.ResponseWriter, r *http.Request) {
 		f.Errors["email"] = "Enter a valid email address."
 	}
 	if !validPassword(pw) {
-		f.Errors["password"] = "Use at least 8 characters."
+		f.Errors["password"] = passwordLengthMsg
 	}
 	if len(f.Errors) > 0 {
 		a.authPage(w, r, http.StatusUnprocessableEntity, "register", "Create account", f)
@@ -185,7 +215,7 @@ func (a *App) resetPost(w http.ResponseWriter, r *http.Request) {
 	}
 	pw := r.FormValue("password")
 	if !validPassword(pw) {
-		a.authPage(w, r, http.StatusUnprocessableEntity, "reset", "Choose a new password", authForm{Errors: map[string]string{"password": "Use at least 8 characters."}})
+		a.authPage(w, r, http.StatusUnprocessableEntity, "reset", "Choose a new password", authForm{Errors: map[string]string{"password": passwordLengthMsg}})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost)

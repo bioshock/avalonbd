@@ -163,3 +163,57 @@ func TestAccountProfileAndOrders(t *testing.T) {
 		t.Fatalf("owner should see order without token, got %d", w.Code)
 	}
 }
+
+// TestSafeNext exercises safeNext directly rather than through HTTP: Go's
+// client-side header parser drops a malformed Location header before an
+// httptest assertion could ever see it, so an HTTP-level test provably
+// cannot catch the ASCII-tab bypass (next=/%09/evil.com, which decodes to
+// "/\t/evil.com" by the time it reaches safeNext).
+func TestSafeNext(t *testing.T) {
+	cases := []struct {
+		name, in, want string
+	}{
+		{"same-site path accepted", "/account", "/account"},
+		{"same-site path with query accepted", "/products?x=1", "/products?x=1"},
+		{"decoded ASCII tab rejected", "/\t/evil.com", ""},
+		{"protocol-relative rejected", "//evil.com", ""},
+		{"backslash bypass rejected", "/\\evil.com", ""},
+		{"absolute https rejected", "https://evil.com", ""},
+		{"absolute http rejected", "http://evil.com", ""},
+		{"decoded newline rejected", "/\n/evil.com", ""},
+		{"decoded carriage return rejected", "/\r/evil.com", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := safeNext(c.in); got != c.want {
+				t.Fatalf("safeNext(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// longPassword is 30 Bengali runes: 90 UTF-8 bytes, well over bcrypt's
+// 72-byte cap, while its rune count (30) stays comfortably under any
+// rune-based limit — the exact shape that slipped past the old
+// rune-only-bounded validPassword and reached bcrypt.GenerateFromPassword,
+// which returned ErrPasswordTooLong and 500'd.
+var longPassword = strings.Repeat("অ", 30)
+
+func TestRegisterAndResetPasswordOverByteCap(t *testing.T) {
+	a, st := newDBApp(t)
+
+	w := do(t, a, "POST", "/register", strings.NewReader(registerForm("longpw@example.com", "Long", longPassword)))
+	if w.Code != 422 || !strings.Contains(w.Body.String(), "72 bytes") {
+		t.Fatalf("long password on register: %d %s", w.Code, w.Body.String())
+	}
+
+	u, err := st.CreateUser(context.Background(), "reset-longpw@example.com", "x", "Ana", "customer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok := a.tok.ResetToken(u.ID, time.Now().Add(time.Hour), u.PasswordHash)
+	w = do(t, a, "POST", "/reset/"+tok, strings.NewReader(url.Values{"password": {longPassword}}.Encode()))
+	if w.Code != 422 || !strings.Contains(w.Body.String(), "72 bytes") {
+		t.Fatalf("long password on reset: %d %s", w.Code, w.Body.String())
+	}
+}
