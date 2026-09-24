@@ -98,6 +98,16 @@ func (a *App) routes() {
 	m.HandleFunc("POST /account", a.requireUser(a.accountPost))
 	m.HandleFunc("GET /sitemap.xml", a.sitemap)
 	m.HandleFunc("GET /robots.txt", a.robots)
+	adm := a.requireAdmin
+	m.HandleFunc("GET /admin", adm(a.adminDashboard))
+	m.HandleFunc("GET /admin/categories", adm(a.adminCategories))
+	m.HandleFunc("POST /admin/categories", adm(a.adminCategoryCreate))
+	m.HandleFunc("POST /admin/categories/{id}", adm(a.adminCategoryUpdate))
+	m.HandleFunc("POST /admin/categories/{id}/delete", adm(a.adminCategoryDelete))
+	m.HandleFunc("GET /admin/zones", adm(a.adminZones))
+	m.HandleFunc("POST /admin/zones", adm(a.adminZoneCreate))
+	m.HandleFunc("POST /admin/zones/{id}", adm(a.adminZoneUpdate))
+	m.HandleFunc("POST /admin/zones/{id}/delete", adm(a.adminZoneDelete))
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

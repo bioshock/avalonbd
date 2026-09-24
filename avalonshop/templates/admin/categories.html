@@ -1,0 +1,20 @@
+{{define "content"}}
+<h1>Categories</h1>
+<form class="form" method="post" action="/admin/categories">
+  <div class="row">
+    <div class="field"><label for="new-name">New category</label><input id="new-name" type="text" name="name" required placeholder="e.g. Honey"></div>
+    <div class="field"><label for="new-sort">Sort</label><input id="new-sort" type="number" name="sort" value="0"></div>
+  </div>
+  <button class="btn sm" type="submit">Add category</button>
+</form>
+<div class="table-wrap"><table>
+<thead><tr><th>Name</th><th>Slug</th><th>Sort</th><th></th></tr></thead>
+<tbody>{{range .Data}}<tr>
+  <td><input form="c{{.ID}}" type="text" name="name" value="{{.Name}}" aria-label="Name"></td>
+  <td><input form="c{{.ID}}" type="text" name="slug" value="{{.Slug}}" aria-label="Slug"></td>
+  <td><input form="c{{.ID}}" type="number" name="sort" value="{{.Sort}}" aria-label="Sort"></td>
+  <td><button form="c{{.ID}}" class="btn sm" type="submit">Save</button> <button form="d{{.ID}}" class="btn sm ghost" type="submit">Delete</button></td>
+</tr>{{else}}<tr><td colspan="4" class="empty">No categories yet.</td></tr>{{end}}</tbody>
+</table></div>
+{{range .Data}}<form id="c{{.ID}}" method="post" action="/admin/categories/{{.ID}}"></form><form id="d{{.ID}}" method="post" action="/admin/categories/{{.ID}}/delete" hx-post="/admin/categories/{{.ID}}/delete" hx-confirm="Delete category “{{.Name}}”?"></form>{{end}}
+{{end}}

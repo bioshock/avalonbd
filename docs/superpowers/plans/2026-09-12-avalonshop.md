@@ -6766,7 +6766,7 @@ git commit -m "feat(shop): sitemap.xml and robots.txt"
 - Consumes: `store.Dashboard`, category and zone CRUD, `store.Slugify`, `store.UniqueSlug`.
 - Produces: `(*App) requireAdmin(h http.HandlerFunc) http.HandlerFunc` (404 for anyone who is not `role = admin`), routes `GET /admin`, `GET /admin/categories`, `POST /admin/categories`, `POST /admin/categories/{id}`, `POST /admin/categories/{id}/delete`, `GET /admin/zones`, `POST /admin/zones`, `POST /admin/zones/{id}`, `POST /admin/zones/{id}/delete`; partial `order_rows.html` (takes `[]store.Order`), reused by Task 18; test helper `adminSession(t, a, st) string` (cookie header for a seeded admin).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/admin_test.go`:
 
@@ -6880,12 +6880,12 @@ func TestAdminZones(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run Admin`
 Expected: FAIL (404 for admin routes even as admin)
 
-- [ ] **Step 3: Write admin.go**
+- [x] **Step 3: Write admin.go**
 
 ```go
 package app
@@ -7069,7 +7069,7 @@ func (a *App) adminZoneDelete(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -7086,7 +7086,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("POST /admin/zones/{id}/delete", adm(a.adminZoneDelete))
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/partials/order_rows.html`:
 
@@ -7176,7 +7176,7 @@ In `routes()`, above the `/` fallback:
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes, then commit**
+- [x] **Step 6: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS

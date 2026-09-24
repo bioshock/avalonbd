@@ -1,0 +1,14 @@
+{{define "content"}}{{$d := .Data}}
+<h1>Dashboard</h1>
+<div class="stats">
+  <div class="stat"><div class="n">{{$d.NewOrders}}</div><div class="muted">New orders</div><a href="/admin/orders?status=new">Review</a></div>
+  <div class="stat"><div class="n">{{len $d.LowStock}}</div><div class="muted">Low-stock variants (≤ 5)</div></div>
+</div>
+{{if $d.LowStock}}
+<h2>Low stock</h2>
+<div class="table-wrap"><table><thead><tr><th>Product</th><th>Variant</th><th class="num">Stock</th></tr></thead>
+<tbody>{{range $d.LowStock}}<tr><td>{{.ProductName}}</td><td>{{.VariantName}}</td><td class="num">{{.Stock}}</td></tr>{{end}}</tbody></table></div>
+{{end}}
+<h2>Recent orders</h2>
+{{template "order_rows.html" $d.Recent}}
+{{end}}
