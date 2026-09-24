@@ -96,6 +96,8 @@ func (a *App) routes() {
 	m.HandleFunc("POST /reset/{token}", a.resetPost)
 	m.HandleFunc("GET /account", a.requireUser(a.accountGet))
 	m.HandleFunc("POST /account", a.requireUser(a.accountPost))
+	m.HandleFunc("GET /sitemap.xml", a.sitemap)
+	m.HandleFunc("GET /robots.txt", a.robots)
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

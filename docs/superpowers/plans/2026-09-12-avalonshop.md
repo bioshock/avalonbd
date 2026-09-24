@@ -6631,7 +6631,7 @@ git commit -m "feat(shop): customer accounts with login, registration, password 
 - Consumes: `store.ActiveProductsForSitemap`, `store.ListCategories`.
 - Produces: `GET /sitemap.xml` (`application/xml`, `Cache-Control: public, max-age=3600`), `GET /robots.txt`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `avalonshop/internal/app/sitemap_test.go`:
 
@@ -6673,12 +6673,12 @@ func TestSitemapAndRobots(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run Sitemap`
 Expected: FAIL (404)
 
-- [ ] **Step 3: Write sitemap.go**
+- [x] **Step 3: Write sitemap.go**
 
 ```go
 package app
@@ -6735,7 +6735,7 @@ func (a *App) robots(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -6744,7 +6744,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("GET /robots.txt", a.robots)
 ```
 
-- [ ] **Step 5: Run to verify it passes, then commit**
+- [x] **Step 5: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
