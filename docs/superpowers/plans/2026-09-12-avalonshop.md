@@ -3475,7 +3475,7 @@ git commit -m "feat(shop): SMTP mailer with plain-text templates"
   - Template funcs: `taka`, `imgURL stem width`, `srcset stem width`, `dhaka time`, `deref *string`, `derefInt *int`, `add`, `mul`, `jsonld any`
   - Routes registered here: `GET /healthz`, `GET /static/`, `GET /media/`, and a `/` fallback that renders the 404 page. Later tasks add lines to `routes()`.
 
-- [ ] **Step 1: Fetch htmx and fonts, write the favicon**
+- [x] **Step 1: Fetch htmx and fonts, write the favicon**
 
 ```bash
 cd avalonshop && mkdir -p static/fonts
@@ -3501,7 +3501,7 @@ If the Google CSS endpoint is unreachable, fall back to the TTFs from the google
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#1f6b3a"/><path d="M16 6l8 20h-4.4l-1.7-4.6h-3.8L12.4 26H8z M15.2 18.2h1.6L16 14.6z" fill="#fff"/></svg>
 ```
 
-- [ ] **Step 2: Write app.css**
+- [x] **Step 2: Write app.css**
 
 `avalonshop/static/app.css` (the whole design system; keep it under 15 KB):
 
@@ -3694,7 +3694,7 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 @media(prefers-reduced-motion:reduce){.drawer,.scrim,.card{transition:none}.card:hover{transform:none}}
 ```
 
-- [ ] **Step 3: Write app.js**
+- [x] **Step 3: Write app.js**
 
 `avalonshop/static/app.js` (no inline handlers anywhere, CSP forbids them):
 
@@ -3762,7 +3762,7 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 })();
 ```
 
-- [ ] **Step 4: Write the layouts and partials**
+- [x] **Step 4: Write the layouts and partials**
 
 `avalonshop/templates/layout.html`:
 
@@ -3861,7 +3861,7 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 </html>
 ```
 
-- [ ] **Step 5: Write the failing tests**
+- [x] **Step 5: Write the failing tests**
 
 `avalonshop/internal/app/limiter_test.go`:
 
@@ -4037,12 +4037,12 @@ func TestPlainResponseWithoutGzip(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run to verify it fails**
+- [x] **Step 6: Run to verify it fails**
 
 Run: `go test ./internal/app/`
 Expected: FAIL, `undefined: New` / `undefined: newLimiter`
 
-- [ ] **Step 7: Write limiter.go**
+- [x] **Step 7: Write limiter.go**
 
 ```go
 package app
@@ -4127,7 +4127,7 @@ func clientIP(r *http.Request) string {
 }
 ```
 
-- [ ] **Step 8: Write middleware.go**
+- [x] **Step 8: Write middleware.go**
 
 ```go
 package app
@@ -4264,7 +4264,7 @@ func immutable(next http.Handler) http.Handler {
 }
 ```
 
-- [ ] **Step 9: Write cookies.go**
+- [x] **Step 9: Write cookies.go**
 
 ```go
 package app
@@ -4332,7 +4332,7 @@ func (a *App) popFlash(w http.ResponseWriter, r *http.Request) string {
 }
 ```
 
-- [ ] **Step 10: Write render.go**
+- [x] **Step 10: Write render.go**
 
 ```go
 package app
@@ -4504,7 +4504,7 @@ func (a *App) redirect(w http.ResponseWriter, r *http.Request, url string) {
 }
 ```
 
-- [ ] **Step 11: Write app.go**
+- [x] **Step 11: Write app.go**
 
 ```go
 // Package app is the HTTP layer: storefront and admin handlers, rendering, middleware.
@@ -4593,12 +4593,12 @@ func (a *App) Handler() http.Handler {
 }
 ```
 
-- [ ] **Step 12: Run to verify it passes**
+- [x] **Step 12: Run to verify it passes**
 
 Run: `go vet ./... && go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 13: Wire the app into main.go**
+- [x] **Step 13: Wire the app into main.go**
 
 Replace the whole `main.go` with:
 
@@ -4716,7 +4716,7 @@ func run(log *slog.Logger) error {
 }
 ```
 
-- [ ] **Step 14: Smoke run and commit**
+- [x] **Step 14: Smoke run and commit**
 
 Run: `go build ./... && go run . &` with a `.env` from `.env.example` and local Postgres up, then `curl -sI http://localhost:8080/static/app.css | grep -i cache-control` → expect `immutable`; `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/nope` → `404`. Stop with `kill %1`.
 

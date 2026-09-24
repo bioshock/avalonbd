@@ -13,7 +13,9 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"avalonshop/internal/app"
 	"avalonshop/internal/config"
+	"avalonshop/internal/mail"
 	"avalonshop/internal/store"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,6 +23,12 @@ import (
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
+
+//go:embed templates
+var templatesFS embed.FS
+
+//go:embed static
+var staticFS embed.FS
 
 func main() {
 	healthcheck := flag.Bool("healthcheck", false, "probe the running server and exit 0 if healthy")
@@ -68,28 +76,41 @@ func run(log *slog.Logger) error {
 	if err := st.SeedAdmin(ctx, cfg.AdminEmail, cfg.AdminPassword); err != nil {
 		return err
 	}
-	_ = st // handed to the app in Task 10
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
+	if err := os.MkdirAll(cfg.UploadDir, 0o755); err != nil {
+		return err
+	}
+	mailer, err := mail.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.MailFrom, templatesFS, log)
+	if err != nil {
+		return err
+	}
+	a, err := app.New(cfg, st, mailer, templatesFS, staticFS, log)
+	if err != nil {
+		return err
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           mux,
+		Handler:           a.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		<-ctx.Done()
 		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		srv.Shutdown(sctx)
+		if err := srv.Shutdown(sctx); err != nil {
+			log.Error("shutdown", "err", err)
+		}
+		mailer.Wait()
 	}()
 	log.Info("listening", "addr", cfg.Addr)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+	<-done
 	return nil
 }
