@@ -1,0 +1,14 @@
+{{define "content"}}
+<p class="eyebrow">Shop</p>
+<h1>{{if .Data.Current}}{{.Data.Current.Name}}{{else if .Data.Query}}Results for "{{.Data.Query}}"{{else}}All products{{end}}</h1>
+<form class="search" method="get" action="/products" role="search">
+  <input type="search" name="q" value="{{.Data.Query}}" placeholder="Search products" aria-label="Search products">
+  <button class="btn ghost" type="submit">Search</button>
+</form>
+<div class="chips">
+  <a class="chip{{if not .Data.Current}} on{{end}}" href="/products">All</a>
+  {{$cur := .Data.Current}}{{range .Data.Categories}}<a class="chip{{if and $cur (eq $cur.ID .ID)}} on{{end}}" href="/products?category={{.Slug}}">{{.Name}}</a>{{end}}
+</div>
+{{if .Data.Cards}}<div class="grid">{{range $i, $c := .Data.Cards}}{{template "product_card.html" (cardData $c $i)}}{{end}}</div>
+{{else}}<p class="empty">Nothing here yet.</p>{{end}}
+{{end}}

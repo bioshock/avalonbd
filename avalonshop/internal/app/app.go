@@ -74,6 +74,9 @@ func (a *App) routes() {
 	})
 	m.Handle("GET /static/", immutable(http.StripPrefix("/static/", http.FileServerFS(a.static))))
 	m.Handle("GET /media/", immutable(http.StripPrefix("/media/", http.FileServer(http.Dir(a.cfg.UploadDir)))))
+	m.HandleFunc("GET /{$}", a.home)
+	m.HandleFunc("GET /products", a.products)
+	m.HandleFunc("GET /products/{slug}", a.product)
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }

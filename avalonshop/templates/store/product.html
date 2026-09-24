@@ -1,0 +1,30 @@
+{{define "content"}}
+{{$p := .Data.Product}}{{$sel := .Data.Selected}}
+<p class="crumb"><a href="/products">Shop</a>{{if $p.Category}} / <a href="/products?category={{$p.Category.Slug}}">{{$p.Category.Name}}</a>{{end}} / {{$p.Name}}</p>
+<div class="pp">
+  <div class="gallery">
+    {{if $p.Images}}{{$first := index $p.Images 0}}
+    <img id="gallery-main" class="main" src="{{imgURL $first.File 900}}" srcset="{{srcset $first.File $first.Width}}" sizes="(min-width: 900px) 50vw, 100vw" width="{{$first.Width}}" height="{{$first.Height}}" alt="{{$first.Alt}}" fetchpriority="high" decoding="async">
+    {{if gt (len $p.Images) 1}}<div class="thumbs">{{range $i, $im := $p.Images}}<img{{if eq $i 0}} class="on"{{end}} src="{{imgURL $im.File 400}}" srcset="{{srcset $im.File $im.Width}}" sizes="64px" width="64" height="64" alt="{{$im.Alt}}" loading="lazy" decoding="async" tabindex="0" data-thumb data-src="{{imgURL $im.File 900}}" data-srcset="{{srcset $im.File $im.Width}}" data-alt="{{$im.Alt}}">{{end}}</div>{{end}}
+    {{else}}<div class="main ph" role="img" aria-label="No image yet"></div>{{end}}
+  </div>
+  <div class="buy">
+    {{if $p.Category}}<p class="eyebrow">{{$p.Category.Name}}</p>{{end}}
+    <h1>{{$p.Name}}</h1>
+    {{if $p.Variants}}
+    <form method="post" action="/cart/items" hx-post="/cart/items" hx-target="#drawer" hx-swap="innerHTML">
+      <span class="price"><span id="price">{{taka $sel.Price}}</span><small id="stock">{{if gt $sel.Stock 0}}In stock{{else}}Sold out{{end}}</small></span>
+      {{if gt (len $p.Variants) 1}}<p class="eyebrow muted">Option</p>{{end}}
+      <div class="pills">{{range $p.Variants}}<label class="pill"><input type="radio" name="variant_id" value="{{.ID}}" data-price-text="{{taka .Price}}" data-stock="{{.Stock}}" data-stock-text="{{if gt .Stock 0}}In stock{{else}}Sold out{{end}}"{{if eq .ID $sel.ID}} checked{{end}}{{if eq .Stock 0}} disabled{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+      <div class="buy-row">
+        <span class="qty"><button type="button" data-step="-1" aria-label="Decrease quantity">−</button><input type="number" name="qty" value="1" min="1" max="{{if gt $sel.Stock 0}}{{$sel.Stock}}{{else}}1{{end}}" aria-label="Quantity"><button type="button" data-step="1" aria-label="Increase quantity">+</button></span>
+        <button class="btn" type="submit"{{if eq $sel.Stock 0}} disabled{{end}}>Add to cart</button>
+      </div>
+    </form>
+    {{else}}<p class="muted">Not available right now.</p>{{end}}
+    {{if $p.Description}}<p class="desc">{{$p.Description}}</p>{{end}}
+    <div class="meta"><span>Cash on delivery</span><span>Delivery across Bangladesh</span>{{if $sel.SKU}}<span>SKU {{deref $sel.SKU}}</span>{{end}}<span>Ships in 1–2 days</span></div>
+  </div>
+</div>
+{{if .Data.Related}}<section class="related"><div class="section-head"><h2>You might also like</h2></div><div class="grid">{{range $i, $c := .Data.Related}}{{template "product_card.html" (cardData $c $i)}}{{end}}</div></section>{{end}}
+{{end}}

@@ -4738,7 +4738,7 @@ git commit -m "feat(shop): app core with layouts, design system, middleware, sta
 - Produces: routes `GET /{$}`, `GET /products`, `GET /products/{slug}`; helpers `truncate(s string, n int) string`, `selectedVariant([]store.Variant) store.Variant`, `(*App) productJSONLD(store.ProductFull) template.JS`; template func `cardData card index` → `{C store.ProductCard; Eager bool}`.
 - **Speed and SEO rules baked in here:** first-row cards load eagerly, the rest lazy; product hero image `fetchpriority="high"`; every image has `width`, `height`, `srcset`, `sizes`; JSON-LD Product with per-variant offers; search results are `noindex`; category pages get a canonical with the category query.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/store_pages_test.go`:
 
@@ -4882,12 +4882,12 @@ func TestTruncateAndSelectedVariant(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run 'Home|ProductPage|Truncate'`
 Expected: FAIL, `undefined: truncate`
 
-- [ ] **Step 3: Add the `cardData` template func**
+- [x] **Step 3: Add the `cardData` template func**
 
 In `render.go`, add to the `template.FuncMap` returned by `funcs()`:
 
@@ -4895,7 +4895,7 @@ In `render.go`, add to the `template.FuncMap` returned by `funcs()`:
 		"cardData": func(c store.ProductCard, i int) map[string]any { return map[string]any{"C": c, "Eager": i < 4} },
 ```
 
-- [ ] **Step 4: Write store_pages.go**
+- [x] **Step 4: Write store_pages.go**
 
 ```go
 package app
@@ -5065,7 +5065,7 @@ func (a *App) productJSONLD(p store.ProductFull, desc string) template.JS {
 }
 ```
 
-- [ ] **Step 5: Register the routes**
+- [x] **Step 5: Register the routes**
 
 In `app.go` `routes()`, above the `m.HandleFunc("/", a.notFound)` line, add:
 
@@ -5075,7 +5075,7 @@ In `app.go` `routes()`, above the `m.HandleFunc("/", a.notFound)` line, add:
 	m.HandleFunc("GET /products/{slug}", a.product)
 ```
 
-- [ ] **Step 6: Write the templates**
+- [x] **Step 6: Write the templates**
 
 `avalonshop/templates/partials/product_card.html`:
 
@@ -5163,12 +5163,12 @@ In `app.go` `routes()`, above the `m.HandleFunc("/", a.notFound)` line, add:
 {{end}}
 ```
 
-- [ ] **Step 7: Run to verify it passes**
+- [x] **Step 7: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add avalonshop
