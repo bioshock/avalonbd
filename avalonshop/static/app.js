@@ -12,7 +12,7 @@
 
   function openDrawer() {
     if (!drawer) return;
-    lastFocused = document.activeElement;
+    if (!drawer.classList.contains('open')) lastFocused = document.activeElement;
     drawer.classList.add('open');
     drawer.setAttribute('aria-hidden', 'false');
     scrim.classList.add('open');

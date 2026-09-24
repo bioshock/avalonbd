@@ -3,8 +3,10 @@ package app
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
@@ -113,5 +115,66 @@ func TestPlainResponseWithoutGzip(t *testing.T) {
 	w := do(t, a, "GET", "/no-such-page", nil) // no Accept-Encoding
 	if w.Header().Get("Content-Encoding") != "" || !strings.HasPrefix(w.Header().Get("Content-Type"), "text/html") {
 		t.Fatalf("plain response wrong: %v", w.Header())
+	}
+}
+
+// TestBodyLimits checks limitBody directly: ordinary routes are capped at 1 MB
+// and reject a ~2 MB body, while the image upload route shape gets the 110 MB
+// cap and must not reject the same ~2 MB body for size. No route in this task
+// actually reads the body, so the middleware is exercised against a probe
+// handler that drains r.Body, exactly as a real handler would.
+func TestBodyLimits(t *testing.T) {
+	probe := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := io.Copy(io.Discard, r.Body)
+		if err != nil {
+			var mbe *http.MaxBytesError
+			if errors.As(err, &mbe) {
+				http.Error(w, "too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+			t.Fatalf("unexpected read error: %v", err)
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+	h := limitBody(probe)
+	body := bytes.Repeat([]byte("a"), 2<<20) // ~2 MB; well under the 110 MB cap, well over the 1 MB cap
+
+	r := httptest.NewRequest("POST", "/checkout", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("normal route: want 413 for a 2 MB body, got %d", w.Code)
+	}
+
+	r2 := httptest.NewRequest("POST", "/admin/products/1/images", bytes.NewReader(body))
+	w2 := httptest.NewRecorder()
+	h.ServeHTTP(w2, r2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("upload route: 2 MB body must not be rejected for size, got %d", w2.Code)
+	}
+}
+
+// TestRangeRequestSkipsGzip ensures a 206 Partial Content response (from the
+// static file server answering a Range request) is never gzipped: gzipping it
+// would leave Content-Range describing the identity byte range while the body
+// no longer matches it.
+func TestRangeRequestSkipsGzip(t *testing.T) {
+	a := newApp(t, nil)
+	w := do(t, a, "GET", "/static/app.css", nil, "Accept-Encoding", "gzip", "Range", "bytes=0-99")
+	if w.Code != http.StatusPartialContent {
+		t.Fatalf("status %d, want 206", w.Code)
+	}
+	if enc := w.Header().Get("Content-Encoding"); enc == "gzip" {
+		t.Fatalf("range response must not be gzipped: %v", w.Header())
+	}
+	cr := w.Header().Get("Content-Range")
+	if cr == "" {
+		t.Fatal("missing Content-Range")
+	}
+	if !strings.HasPrefix(cr, "bytes 0-99/") {
+		t.Fatalf("unexpected Content-Range: %q", cr)
+	}
+	if w.Body.Len() != 100 {
+		t.Fatalf("body length %d does not match the requested 100-byte range (Content-Range=%s)", w.Body.Len(), cr)
 	}
 }

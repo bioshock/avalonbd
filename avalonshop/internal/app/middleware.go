@@ -45,7 +45,8 @@ func (g *gzipWriter) WriteHeader(code int) {
 	}
 	g.wroteHeader = true
 	h := g.Header()
-	if code != http.StatusNoContent && code != http.StatusNotModified && compressible(h.Get("Content-Type")) {
+	if code != http.StatusNoContent && code != http.StatusNotModified && code != http.StatusPartialContent &&
+		h.Get("Content-Range") == "" && compressible(h.Get("Content-Type")) {
 		g.compress = true
 		h.Set("Content-Encoding", "gzip")
 		h.Add("Vary", "Accept-Encoding")
@@ -90,8 +91,12 @@ func gzipMiddleware(next http.Handler) http.Handler {
 // limitBody caps request bodies; the image upload route gets its own larger cap.
 func limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Body != nil && !(strings.HasPrefix(r.URL.Path, "/admin/products/") && strings.HasSuffix(r.URL.Path, "/images")) {
-			r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		if r.Body != nil {
+			if strings.HasPrefix(r.URL.Path, "/admin/products/") && strings.HasSuffix(r.URL.Path, "/images") {
+				r.Body = http.MaxBytesReader(w, r.Body, 110<<20)
+			} else {
+				r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+			}
 		}
 		next.ServeHTTP(w, r)
 	})
