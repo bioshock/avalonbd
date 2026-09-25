@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -82,6 +83,9 @@ func CanTransition(from, to string) bool {
 	}
 	return false
 }
+
+// NextStatuses lists the statuses an order may move to from its current one.
+func NextStatuses(from string) []string { return slices.Clone(transitions[from]) }
 
 const orderCols = `id, number, user_id, name, phone, email, address, zone_name, delivery_fee, subtotal, total, status, note, admin_note, created_at, updated_at`
 const itemCols = `id, order_id, variant_id, product_name, variant_name, unit_price, qty`

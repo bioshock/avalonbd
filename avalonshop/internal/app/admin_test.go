@@ -66,6 +66,9 @@ var adminRoutes = [][2]string{
 	{"GET", "/admin/products/{pid}"}, {"POST", "/admin/products/{pid}"},
 	{"POST", "/admin/products/{pid}/delete"}, {"POST", "/admin/products/{pid}/images"},
 	{"POST", "/admin/images/{iid}"}, {"POST", "/admin/images/{iid}/move"}, {"POST", "/admin/images/{iid}/delete"},
+	{"GET", "/admin/orders"},
+	{"GET", "/admin/orders/{oid}"},
+	{"POST", "/admin/orders/{oid}/status"}, {"POST", "/admin/orders/{oid}/note"},
 }
 
 func TestAdminRoutesRequireAdmin(t *testing.T) {
@@ -93,11 +96,20 @@ func TestAdminRoutesRequireAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	p, err := st.GetProduct(ctx, pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	o, err := st.PlaceOrder(ctx, store.NewOrder{Name: "Ana", Phone: "01712345678", Email: "ana@example.com", Address: "Road 1, Rajshahi", ZoneID: zid, Lines: []store.OrderLine{{VariantID: p.Variants[0].ID, Qty: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	replace := strings.NewReplacer(
 		"{cid}", itoa(cid),
 		"{zid}", itoa(zid),
 		"{pid}", itoa(pid),
 		"{iid}", itoa(iid),
+		"{oid}", itoa(o.ID),
 	)
 
 	for _, rt := range adminRoutes {

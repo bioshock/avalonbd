@@ -7851,7 +7851,7 @@ git commit -m "feat(shop): admin product editor with variants and image uploads"
 - Consumes: `store.ListOrders`, `GetOrder`, `UpdateOrderStatus`, `SetAdminNote`, `a.sendOrderMails`, `order_rows.html`.
 - Produces: `store.NextStatuses(from string) []string`; routes `GET /admin/orders?status=` (default `new`; `all` shows everything), `GET /admin/orders/{id}`, `POST /admin/orders/{id}/status` (form `status`), `POST /admin/orders/{id}/note` (form `note`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/admin_orders_test.go`:
 
@@ -7920,12 +7920,12 @@ func TestAdminOrdersFlow(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run AdminOrders`
 Expected: FAIL (404)
 
-- [ ] **Step 3: Add NextStatuses to the store**
+- [x] **Step 3: Add NextStatuses to the store**
 
 In `internal/store/orders.go`, below `CanTransition`:
 
@@ -7934,7 +7934,7 @@ In `internal/store/orders.go`, below `CanTransition`:
 func NextStatuses(from string) []string { return transitions[from] }
 ```
 
-- [ ] **Step 4: Write admin_orders.go**
+- [x] **Step 4: Write admin_orders.go**
 
 ```go
 package app
@@ -8017,7 +8017,7 @@ func (a *App) adminOrderNote(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 5: Register the routes**
+- [x] **Step 5: Register the routes**
 
 In `routes()`, after the product routes:
 
@@ -8028,7 +8028,7 @@ In `routes()`, after the product routes:
 	m.HandleFunc("POST /admin/orders/{id}/note", adm(a.adminOrderNote))
 ```
 
-- [ ] **Step 6: Write the templates**
+- [x] **Step 6: Write the templates**
 
 `avalonshop/templates/admin/orders.html`:
 
@@ -8076,7 +8076,7 @@ In `routes()`, after the product routes:
 {{end}}
 ```
 
-- [ ] **Step 7: Run to verify it passes, then commit**
+- [x] **Step 7: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./...`
 Expected: PASS across all packages

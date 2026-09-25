@@ -1,0 +1,28 @@
+{{define "content"}}{{$d := .Data}}{{$o := $d.Order}}
+<div class="toolbar"><h1>Order {{$o.Number}}</h1><span class="status {{$o.Status}}">{{$o.Status}}</span></div>
+<p class="help">Placed {{dhaka $o.CreatedAt}} · updated {{dhaka $o.UpdatedAt}} · <a href="{{$d.TrackURL}}">customer view</a></p>
+<div class="cart-page">
+  <div>
+    <h2>Items</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Amount</th></tr></thead>
+      <tbody>{{range $o.Items}}<tr><td>{{.ProductName}} <span class="muted">{{.VariantName}}</span></td><td class="num">{{.Qty}}</td><td class="num">{{taka .UnitPrice}}</td><td class="num">{{taka (mul .UnitPrice .Qty)}}</td></tr>{{end}}</tbody>
+    </table></div>
+    <div class="totals"><span>Subtotal</span><span class="mono">{{taka $o.Subtotal}}</span><span>Delivery ({{$o.ZoneName}})</span><span class="mono">{{taka $o.DeliveryFee}}</span><span class="big">Total to collect</span><span class="big price">{{taka $o.Total}}</span></div>
+    {{if $o.Note}}<h3>Customer note</h3><p class="desc">{{$o.Note}}</p>{{end}}
+    <h3>Internal note</h3>
+    <form method="post" action="/admin/orders/{{$o.ID}}/note"><div class="field"><textarea name="note" rows="3">{{$o.AdminNote}}</textarea></div><button class="btn sm ghost" type="submit">Save note</button></form>
+  </div>
+  <aside class="panel">
+    <h2>Customer</h2>
+    <p class="desc">{{$o.Name}}
+<a href="tel:{{$o.Phone}}">{{$o.Phone}}</a>
+<a href="mailto:{{$o.Email}}">{{$o.Email}}</a>
+{{$o.Address}}</p>
+    <h2>Update status</h2>
+    {{if $d.Next}}{{range $d.Next}}<form class="inline" method="post" action="/admin/orders/{{$o.ID}}/status"{{if eq . "cancelled"}} hx-post="/admin/orders/{{$o.ID}}/status" hx-confirm="Cancel this order and restore stock?"{{end}}><input type="hidden" name="status" value="{{.}}"><button class="btn sm{{if eq . "cancelled"}} danger{{end}}" type="submit">Mark {{.}}</button></form> {{end}}
+    <p class="help">Shipped and delivered email the customer. Cancelled puts stock back.</p>
+    {{else}}<p class="help">This order is closed.</p>{{end}}
+  </aside>
+</div>
+{{end}}
