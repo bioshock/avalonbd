@@ -17,6 +17,27 @@ func TestTransliterate(t *testing.T) {
 		want string
 	}{
 		{
+			name: "khanda ta is a bare /t/ and never takes the inherent vowel",
+			// উৎসব (utsob, "festival"): ৎ is ত stripped of its inherent
+			// vowel, which is the only difference between the two letters, so
+			// it contributes "t" and never "to" -- even mid-word, where an
+			// ordinary consonant before another consonant would take one.
+			// Dropping it instead lost the consonant outright ("usob").
+			in:   "উৎসব",
+			want: "utsob",
+		},
+		{
+			name: "word-final khanda ta contributes a bare t",
+			// বিদ্যুৎ (bidyut, "electricity"). The "dj" is the known
+			// ya-phala imprecision -- ্য after a consonant geminates in speech
+			// ("bidyut"), which needs phonological context this table
+			// deliberately does not model, the same accepted trade-off as
+			// medial schwa deletion. What this case pins is the trailing
+			// "t": before khanda ta was mapped, the word ended in "u".
+			in:   "বিদ্যুৎ",
+			want: "bidjut",
+		},
+		{
 			name: "inherent vowel on a bare non-final consonant",
 			// মন (mon, "mind"): ম has no matra/hasanta and is not
 			// word-final, so it keeps the inherent vowel "o".
@@ -137,12 +158,14 @@ func TestTransliterate(t *testing.T) {
 		},
 		{
 			name: "an unmapped Bangla letter is dropped, not passed through",
-			// KHANDA TA (U+09CE) has no entry in banglaConsonants and is
+			// VOCALIC L (U+098C) has no entry in banglaConsonants and is
 			// listed in banglaDeliberatelyDropped. Fix round 1 (C2):
 			// Transliterate itself drops it (rather than passing it
 			// through for Slugify's filter to drop later), so it never
-			// appears in Transliterate's return value.
-			in:   "ৎ",
+			// appears in Transliterate's return value. This case used
+			// KHANDA TA until it was mapped to "t"; the fixture has to be a
+			// letter that is genuinely still dropped or it asserts nothing.
+			in:   "ঌ",
 			want: "",
 		},
 		{

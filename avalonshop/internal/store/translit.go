@@ -58,6 +58,11 @@ func Transliterate(s string) string {
 				// Already a single nukta-letter codepoint (see the doc comment
 				// above): no separate nukta rune follows to merge with.
 				noInherentVowel = true
+			case khandaTa:
+				// KHANDA TA is by definition ত stripped of its inherent vowel --
+				// that is the only thing distinguishing the two letters -- so it
+				// never takes one, in any position: উৎসব is "utsob", not "utosob".
+				noInherentVowel = true
 			default:
 				if letterEnd < n && runes[letterEnd] == nukta {
 					if nuktaSound, ok2 := banglaNuktaConsonants[r]; ok2 {
@@ -226,6 +231,7 @@ var banglaConsonants = map[rune]string{
 	'ঢ': "dh",  // BENGALI LETTER DDHA
 	'ণ': "n",   // BENGALI LETTER NNA
 	'ত': "t",   // BENGALI LETTER TA
+	'ৎ': "t",   // BENGALI LETTER KHANDA TA (bare /t/, see khandaTa)
 	'থ': "th",  // BENGALI LETTER THA
 	'দ': "d",   // BENGALI LETTER DA
 	'ধ': "dh",  // BENGALI LETTER DHA
@@ -311,7 +317,6 @@ var banglaDigits = map[rune]rune{
 // handling) this map and its test were added to catch.
 var banglaDeliberatelyDropped = map[rune]string{
 	'ঌ': "VOCALIC L: a Sanskrit-derived letter, not used in modern Bangla spelling",                                                                                                                                                                                                                       // BENGALI LETTER VOCALIC L (letter)
-	'ৎ': "KHANDA TA: a distinct bare-consonant letter (e.g. উৎসব, utsob/festival); left unmapped to keep this table to the brief's four abugida rules rather than adding a case for one rare letter",                                                                                                      // BENGALI LETTER KHANDA TA (letter)
 	'ৰ': "RA WITH MIDDLE DIAGONAL: an Assamese letter, not standard Bangla",                                                                                                                                                                                                                               // BENGALI LETTER RA WITH MIDDLE DIAGONAL (letter)
 	'ৱ': "RA WITH LOWER DIAGONAL: an Assamese letter, not standard Bangla",                                                                                                                                                                                                                                // BENGALI LETTER RA WITH LOWER DIAGONAL (letter)
 	'ৄ': "VOWEL SIGN VOCALIC RR: vanishingly rare even in Sanskrit loanwords",                                                                                                                                                                                                                             // BENGALI VOWEL SIGN VOCALIC RR (matra)
@@ -323,6 +328,7 @@ const (
 	anusvara       = 'ং' // BENGALI SIGN ANUSVARA: mapped to "ng"
 	visarga        = 'ঃ' // BENGALI SIGN VISARGA: mapped to "h"
 	nukta          = '়' // BENGALI SIGN NUKTA: combines with ড/ঢ/য, see banglaNuktaConsonants
+	khandaTa       = 'ৎ' // BENGALI LETTER KHANDA TA: a bare /t/, never takes the inherent vowel
 	aaLetter       = 'আ' // BENGALI LETTER AA: "aa" when word-initial, else "a"
 	independentO   = 'ও' // BENGALI LETTER O: see the "-ওয়া" wa-glide comment on Transliterate
 	bengaliBlockLo = 'ঀ' // first Bengali Unicode block code point
