@@ -210,19 +210,9 @@ func (a *App) adminProductUpdate(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	// Record the retired slug immediately after the successful update: this
-	// handler isn't itself transactional across the two store calls (Task 21
-	// deliberately keeps internal/store/products.go out of scope), so it
-	// follows the brief's non-transactional fallback rather than wrapping
-	// UpdateProduct's own transaction. Skipped entirely when the slug did not
-	// change, so a save that only edits price or stock never touches
-	// product_slugs.
-	if existing.Slug != p.Slug {
-		if err := a.st.RecordOldSlug(r.Context(), id, existing.Slug); err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-	}
+	// Recording the retired slug happens inside UpdateProduct itself, under
+	// the same row lock and transaction as the rename (Task 21 fix round 1):
+	// this handler no longer needs to do it as a second, separate call.
 	a.flashBack(w, r, "Saved.", "/admin/products/"+strconv.FormatInt(id, 10))
 }
 

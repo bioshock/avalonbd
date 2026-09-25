@@ -186,6 +186,17 @@ func (s *Store) UpdateProduct(ctx context.Context, p Product, vs []Variant) erro
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	// Lock the row and read the slug it currently has, so the retired slug is
+	// captured from the row we are about to overwrite rather than from a read
+	// the caller did earlier. Two concurrent renames then serialize here: the
+	// second one blocks until the first commits and so sees the first one's
+	// new slug as ITS old slug, and both retired values end up in
+	// product_slugs instead of one being silently lost (Task 21 fix round 1).
+	var oldSlug string
+	if err := tx.QueryRow(ctx, `select slug from products where id = $1 for update`, p.ID).Scan(&oldSlug); err != nil {
+		return mapErr(err)
+	}
 	tag, err := tx.Exec(ctx, `update products set slug = $2, name = $3, description = $4, category_id = $5,
 		meta_description = $6, active = $7, featured = $8, updated_at = clock_timestamp() where id = $1`,
 		p.ID, p.Slug, p.Name, p.Description, p.CategoryID, p.MetaDescription, p.Active, p.Featured)
@@ -194,6 +205,15 @@ func (s *Store) UpdateProduct(ctx context.Context, p Product, vs []Variant) erro
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound
+	}
+	if oldSlug != p.Slug {
+		// product_slugs.slug is the primary key: a slug retired by one
+		// product and later retired again by another (after being reused)
+		// must not error on the duplicate key — the newest owner wins.
+		if _, err := tx.Exec(ctx, `insert into product_slugs (slug, product_id) values ($1, $2)
+			on conflict (slug) do update set product_id = excluded.product_id`, oldSlug, p.ID); err != nil {
+			return mapErr(err)
+		}
 	}
 	if err := syncVariants(ctx, tx, p.ID, vs); err != nil {
 		return err

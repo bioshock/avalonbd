@@ -20,6 +20,11 @@ func createSlugHistoryProduct(t *testing.T, st *store.Store, slug string, active
 	return id
 }
 
+// renameSlugHistoryProduct renames a product through UpdateProduct alone.
+// Recording the retired slug into product_slugs is UpdateProduct's own job
+// now (internal/store/products.go, Task 21 fix round 1) — it happens inside
+// the same transaction and row lock as the rename, so there is no separate
+// history-recording call left for callers to make.
 func renameSlugHistoryProduct(t *testing.T, st *store.Store, id int64, newSlug string) {
 	t.Helper()
 	ctx := context.Background()
@@ -27,12 +32,8 @@ func renameSlugHistoryProduct(t *testing.T, st *store.Store, id int64, newSlug s
 	if err != nil {
 		t.Fatal(err)
 	}
-	old := p.Slug
 	p.Slug = newSlug
 	if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
-		t.Fatal(err)
-	}
-	if err := st.RecordOldSlug(ctx, id, old); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -105,39 +106,6 @@ func TestResolveSlugRedirectInactiveProduct404s(t *testing.T) {
 	if !errors.Is(err, store.ErrNotFound) {
 		t.Fatalf("old slug of a deactivated product must report ErrNotFound (404), got %v", err)
 	}
-}
-
-// TestRecordOldSlugGuardsSelfReference asserts the write side never writes a
-// product's own CURRENT slug into its history. A rename-and-rename-back
-// sequence retires "b" while the live slug lands back on "a", which already
-// has a history row from the first rename; RecordOldSlug must not disturb
-// that, and a fresh call with the slug the product already currently has
-// must be a silent no-op.
-func TestRecordOldSlugGuardsSelfReference(t *testing.T) {
-	st := store.New(storetest.Pool(t))
-	ctx := context.Background()
-	id := createSlugHistoryProduct(t, st, "a", true)
-
-	// Calling RecordOldSlug with the product's own current slug must not
-	// create a row at all.
-	if err := st.RecordOldSlug(ctx, id, "a"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := st.ResolveSlugRedirect(ctx, "a"); !errors.Is(err, store.ErrNotFound) {
-		t.Fatalf("a product's own current slug must never resolve out of history, got %v", err)
-	}
-
-	renameSlugHistoryProduct(t, st, id, "b") // records "a" -> id
-	renameSlugHistoryProduct(t, st, id, "a") // records "b" -> id; live slug is "a" again
-
-	// "b" now correctly resolves to the live slug "a".
-	if got, err := st.ResolveSlugRedirect(ctx, "b"); err != nil || got != "a" {
-		t.Fatalf("ResolveSlugRedirect(b) = %q, %v; want a, nil", got, err)
-	}
-	// The stale "a" history row from the first rename still exists, but it
-	// can never shadow the live product: callers check products.slug first
-	// (internal/app/store_pages.go), so a request for "a" is answered by the
-	// live row and never reaches this history lookup at all.
 }
 
 // TestSlugHistoryUpsertOnReuse covers what happens when two different

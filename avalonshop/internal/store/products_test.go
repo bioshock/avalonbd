@@ -3,6 +3,9 @@ package store_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sort"
+	"sync"
 	"testing"
 
 	"avalonshop/internal/store"
@@ -147,4 +150,191 @@ func TestImagesOrderAndCartLookup(t *testing.T) {
 	if err != nil || len(cv) != 1 || cv[0].ProductSlug != "honey" || cv[0].Price != 650 || cv[0].ImageFile == nil || *cv[0].ImageFile != "b" {
 		t.Fatalf("cart lookup: %+v %v", cv, err)
 	}
+}
+
+// ---- Task 21 fix round 1: slug history is written inside UpdateProduct ----
+
+// TestUpdateProductRecordsSlugHistoryOnRename asserts UpdateProduct itself —
+// not a separate caller-side step — writes the retired slug into
+// product_slugs when the slug actually changes.
+func TestUpdateProductRecordsSlugHistoryOnRename(t *testing.T) {
+	pool := storetest.Pool(t)
+	st := store.New(pool)
+	ctx := context.Background()
+	id := seedProduct(t, st, "wild-honey", true, 650)
+
+	p, _ := st.GetProduct(ctx, id)
+	p.Slug = "wild-forest-honey"
+	if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
+		t.Fatal(err)
+	}
+
+	var slug string
+	var productID int64
+	if err := pool.QueryRow(ctx, `select slug, product_id from product_slugs where slug = $1`, "wild-honey").Scan(&slug, &productID); err != nil {
+		t.Fatalf("expected a history row for the retired slug: %v", err)
+	}
+	if productID != id {
+		t.Fatalf("history row points at product %d, want %d", productID, id)
+	}
+	got, err := st.ResolveSlugRedirect(ctx, "wild-honey")
+	if err != nil || got != "wild-forest-honey" {
+		t.Fatalf("ResolveSlugRedirect(wild-honey) = %q, %v; want wild-forest-honey, nil", got, err)
+	}
+}
+
+// TestUpdateProductSkipsSlugHistoryWhenSlugUnchanged asserts a save that only
+// touches price, name, or any other field never writes to product_slugs.
+func TestUpdateProductSkipsSlugHistoryWhenSlugUnchanged(t *testing.T) {
+	pool := storetest.Pool(t)
+	st := store.New(pool)
+	ctx := context.Background()
+	id := seedProduct(t, st, "wild-honey", true, 650)
+
+	p, _ := st.GetProduct(ctx, id)
+	p.Name = "Wild Honey (Grade A)"
+	if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
+		t.Fatal(err)
+	}
+
+	var n int
+	if err := pool.QueryRow(ctx, `select count(*) from product_slugs where product_id = $1`, id).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("a save that doesn't change the slug must not write history, got %d rows", n)
+	}
+}
+
+// TestUpdateProductConcurrentRenamesDoNotLoseSlugs is the Task 21 fix-round-1
+// regression test. Two admins renaming the SAME product concurrently to
+// different slugs must not silently drop one of the two retired values: the
+// bug (fixed by reading the old slug under `select ... for update` inside
+// UpdateProduct's own transaction, rather than trusting a value the caller
+// read earlier) let whichever rename lost the last-write race vanish with no
+// error and no history row, 404ing forever afterward.
+//
+// Reliability, not luck:
+//   - Each iteration uses its own fresh product, so a bad ordering in one
+//     iteration can't be masked or amplified by another.
+//   - Both renames are released from a shared, closed-once channel so their
+//     Begin/lock/read/write round trips to a real Postgres instance actually
+//     overlap; pgxpool gives each goroutine its own connection, so there is
+//     no client-side serialization forcing them apart.
+//   - 20 independent iterations run, and the test asserts that BOTH
+//     candidates win at least once across them. If one side deterministically
+//     won every time, that would mean the two calls were never actually
+//     concurrent (e.g. because of accidental sequencing in the test itself),
+//     and the whole test would only be proving something true by construction
+//     rather than exercising the race — the test fails outright in that case
+//     rather than silently passing for the wrong reason.
+//   - Every iteration checks the exact, not just the eventual, outcome:
+//     product_slugs for that product must contain PRECISELY {s0, loser} —
+//     s0 recorded by whichever transaction ran first (it read the original
+//     slug), and loser recorded by whichever ran second (it read the first
+//     transaction's committed new slug, under the row lock, as ITS old
+//     slug). This is the serialization claim itself, not just its consequence.
+func TestUpdateProductConcurrentRenamesDoNotLoseSlugs(t *testing.T) {
+	const iterations = 20
+	pool := storetest.Pool(t)
+	st := store.New(pool)
+	ctx := context.Background()
+
+	var lost int
+	var winsA, winsB int
+	for i := 0; i < iterations; i++ {
+		s0 := fmt.Sprintf("iter%d-s0", i)
+		slugA := fmt.Sprintf("iter%d-a", i)
+		slugB := fmt.Sprintf("iter%d-b", i)
+		id := seedProduct(t, st, s0, true, 100)
+
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		rename := func(newSlug string) {
+			defer wg.Done()
+			<-start
+			p, err := st.GetProduct(ctx, id)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			p.Slug = newSlug
+			if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
+				t.Error(err)
+			}
+		}
+		wg.Add(2)
+		go rename(slugA)
+		go rename(slugB)
+		close(start)
+		wg.Wait()
+
+		final, err := st.GetProduct(ctx, id)
+		if err != nil {
+			t.Fatalf("iteration %d: %v", i, err)
+		}
+		var winner, loser string
+		switch final.Slug {
+		case slugA:
+			winner, loser = slugA, slugB
+			winsA++
+		case slugB:
+			winner, loser = slugB, slugA
+			winsB++
+		default:
+			t.Fatalf("iteration %d: final slug %q is neither candidate (a=%q b=%q)", i, final.Slug, slugA, slugB)
+		}
+
+		// Every slug that was ever live for this product must resolve to the
+		// one now live.
+		for _, old := range []string{s0, loser} {
+			got, err := st.ResolveSlugRedirect(ctx, old)
+			if err != nil || got != winner {
+				lost++
+				t.Logf("iteration %d: %q lost — ResolveSlugRedirect(%q) = %q, %v; want %q, nil", i, old, old, got, err, winner)
+			}
+		}
+
+		// The serialization claim, checked directly: history holds exactly
+		// {s0, loser}, nothing more and nothing less.
+		rows, err := pool.Query(ctx, `select slug from product_slugs where product_id = $1 order by slug`, id)
+		if err != nil {
+			t.Fatalf("iteration %d: %v", i, err)
+		}
+		var got []string
+		for rows.Next() {
+			var s string
+			if err := rows.Scan(&s); err != nil {
+				t.Fatal(err)
+			}
+			got = append(got, s)
+		}
+		rows.Close()
+		want := []string{s0, loser}
+		sort.Strings(want)
+		if !equalStrings(got, want) {
+			lost++
+			t.Logf("iteration %d: history = %v, want exactly %v", i, got, want)
+		}
+	}
+
+	t.Logf("win split across %d iterations: a=%d b=%d (both non-zero proves genuine interleaving)", iterations, winsA, winsB)
+	if winsA == 0 || winsB == 0 {
+		t.Fatalf("both candidates must win at least once across %d iterations to prove genuine concurrency (a won %d, b won %d) — the test is not exercising the race", iterations, winsA, winsB)
+	}
+	if lost > 0 {
+		t.Fatalf("%d slug(s) lost or mis-recorded across %d concurrent-rename iterations (see log lines above)", lost, iterations)
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
