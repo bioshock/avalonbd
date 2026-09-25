@@ -1,0 +1,29 @@
+{{define "content"}}
+{{$d := .Data}}{{$f := $d.Form}}
+<p class="eyebrow">Checkout</p>
+<h1>Delivery details</h1>
+{{if $d.Error}}<div class="errbox" role="alert">{{$d.Error}}</div>{{end}}
+<div class="cart-page">
+<form id="checkout-form" class="form wide" method="post" action="/checkout" novalidate>
+  <div class="row">
+    <div class="field"><label for="name">Full name</label><input id="name" type="text" name="name" value="{{$f.Name}}" required autocomplete="name">{{with $f.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
+    <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" name="phone" value="{{$f.Phone}}" required autocomplete="tel" placeholder="01712 345678">{{with $f.Errors.phone}}<p class="err">{{.}}</p>{{end}}</div>
+  </div>
+  <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{$f.Email}}" required autocomplete="email"><p class="help">We'll send your order confirmation here.</p>{{with $f.Errors.email}}<p class="err">{{.}}</p>{{end}}</div>
+  <div class="field"><label for="address">Delivery address</label><textarea id="address" name="address" required autocomplete="street-address">{{$f.Address}}</textarea>{{with $f.Errors.address}}<p class="err">{{.}}</p>{{end}}</div>
+  <fieldset class="field radio-list"><legend class="eyebrow">Delivery area</legend>
+    {{range $d.Zones}}<label><span><input type="radio" name="zone_id" value="{{.ID}}"{{if eq .ID $f.ZoneID}} checked{{end}} hx-get="/checkout/totals" hx-trigger="change" hx-target="#totals" hx-swap="innerHTML">{{.Name}}</span><span class="price">{{taka .Fee}}</span></label>{{end}}
+    {{with $f.Errors.zone_id}}<p class="err">{{.}}</p>{{end}}
+  </fieldset>
+  <div class="field"><label for="note">Note for us (optional)</label><textarea id="note" name="note">{{$f.Note}}</textarea>{{with $f.Errors.note}}<p class="err">{{.}}</p>{{end}}</div>
+  <button class="btn" type="submit">Place order · pay cash on delivery</button>
+</form>
+<aside class="panel">
+  <h2>Your order</h2>
+  <div class="totals">{{range $d.Cart.Lines}}<span>{{.ProductName}} <span class="muted">{{.VariantName}} × {{.Qty}}</span></span><span class="mono">{{taka .LineTotal}}</span>{{end}}</div>
+  <hr>
+  <div id="totals">{{template "checkout_totals.html" $d.Totals}}</div>
+  <p class="help"><a href="/cart">Edit cart</a></p>
+</aside>
+</div>
+{{end}}

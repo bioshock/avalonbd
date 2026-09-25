@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/app.css?v={{.V}}">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false}'>
+<script src="/static/htmx.min.js?v={{.V}}" defer></script>
+<script src="/static/app.js?v={{.V}}" defer></script>
+</head>
+<body class="admin">
+<aside class="side">
+  <a class="brand" href="/admin">Avalon Admin</a>
+  <nav>
+    <a href="/admin"{{if eq .Path "/admin"}} class="on"{{end}}>Dashboard</a>
+    <a href="/admin/orders"{{if hasPrefix .Path "/admin/orders"}} class="on"{{end}}>Orders</a>
+    <a href="/admin/products"{{if hasPrefix .Path "/admin/products"}} class="on"{{end}}>Products</a>
+    <a href="/admin/categories"{{if hasPrefix .Path "/admin/categories"}} class="on"{{end}}>Categories</a>
+    <a href="/admin/zones"{{if hasPrefix .Path "/admin/zones"}} class="on"{{end}}>Delivery zones</a>
+    <a href="/">View shop</a>
+  </nav>
+  <form method="post" action="/logout"><button class="btn ghost sm" type="submit">Log out</button></form>
+</aside>
+<div class="content">
+{{if .Flash}}<div class="flash" role="status">{{.Flash}}</div>{{end}}
+{{template "content" .}}
+</div>
+</body>
+</html>

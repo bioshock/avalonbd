@@ -1,0 +1,16 @@
+{{if .Errors}}<div class="errbox" role="alert">{{range .Errors}}<div>{{.}}</div>{{end}}</div>{{end}}
+<div class="imgs">
+{{range .Images}}<figure>
+  <img src="{{imgURL .File 400}}" width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" loading="lazy" decoding="async">
+  <form method="post" action="/admin/images/{{.ID}}" hx-post="/admin/images/{{.ID}}" hx-target="#images" hx-swap="innerHTML">
+    <input type="hidden" name="product_id" value="{{.ProductID}}">
+    <input type="text" name="alt" value="{{.Alt}}" placeholder="Alt text: describe the photo" aria-label="Alt text">
+    <button class="btn sm ghost" type="submit">Save alt</button>
+  </form>
+  <div class="acts">
+    <form method="post" action="/admin/images/{{.ID}}/move" hx-post="/admin/images/{{.ID}}/move" hx-target="#images" hx-swap="innerHTML"><input type="hidden" name="product_id" value="{{.ProductID}}"><input type="hidden" name="dir" value="up"><button class="btn sm ghost" type="submit" aria-label="Move up">↑</button></form>
+    <form method="post" action="/admin/images/{{.ID}}/move" hx-post="/admin/images/{{.ID}}/move" hx-target="#images" hx-swap="innerHTML"><input type="hidden" name="product_id" value="{{.ProductID}}"><input type="hidden" name="dir" value="down"><button class="btn sm ghost" type="submit" aria-label="Move down">↓</button></form>
+    <form method="post" action="/admin/images/{{.ID}}/delete" hx-post="/admin/images/{{.ID}}/delete" hx-target="#images" hx-swap="innerHTML" hx-confirm="Delete this image?"><button class="btn sm danger" type="submit">Delete</button></form>
+  </div>
+</figure>{{else}}<p class="empty">No photos yet. The first photo is the one shown in listings.</p>{{end}}
+</div>

@@ -1,0 +1,8 @@
+<tr>
+  <td><input type="hidden" name="variant_id" value="{{if .ID}}{{.ID}}{{end}}"><input type="text" name="variant_name" value="{{.Name}}" placeholder="e.g. 500g" aria-label="Variant name"></td>
+  <td><input type="text" name="variant_sku" value="{{deref .SKU}}" placeholder="optional" aria-label="SKU"></td>
+  <td><input type="number" name="variant_price" min="0" value="{{if .ID}}{{.Price}}{{end}}" aria-label="Price"></td>
+  <td><input type="number" name="variant_stock" min="0" value="{{if .ID}}{{.Stock}}{{else}}0{{end}}" aria-label="Stock"><input type="hidden" name="variant_stock_was" value="{{if .ID}}{{.Stock}}{{end}}"></td>
+  <td><input type="number" name="variant_sort" value="{{if .ID}}{{.Sort}}{{end}}" aria-label="Sort"></td>
+  <td><button class="btn sm ghost" type="button" data-remove-row aria-label="Remove variant">×</button></td>
+</tr>

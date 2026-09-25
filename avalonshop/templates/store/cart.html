@@ -1,0 +1,33 @@
+{{define "content"}}
+<p class="eyebrow">Cart</p>
+<h1>Your cart</h1>
+{{if .Data.Lines}}
+<div class="cart-page">
+  <div>
+  {{range .Data.Lines}}
+  <div class="cl">
+    {{template "cart_thumb.html" .}}
+    <div>
+      <p class="n"><a href="/products/{{.ProductSlug}}">{{.ProductName}}</a></p>
+      <div class="v">{{.VariantName}} · {{taka .Price}}</div>
+      {{if .Short}}<div class="v err" role="alert">Only {{.Stock}} left</div>{{end}}
+      <form method="post" action="/cart/items/{{.VariantID}}">
+        {{template "qty_stepper.html" .}}
+        <button class="btn ghost sm" type="submit">Update</button>
+      </form>
+    </div>
+    <div class="price">{{taka .LineTotal}}</div>
+  </div>
+  {{end}}
+  </div>
+  <aside class="panel">
+    <div class="totals"><span>Subtotal</span><span class="price">{{taka .Data.Subtotal}}</span></div>
+    <p class="help">Delivery is added at checkout. Cash on delivery.</p>
+    <a class="btn" href="/checkout">Checkout</a>
+  </aside>
+</div>
+{{else}}
+<p class="empty">Your cart is empty.</p>
+<p><a class="btn" href="/products">Browse products</a></p>
+{{end}}
+{{end}}

@@ -1,0 +1,12 @@
+{{define "content"}}{{$f := .Data}}
+<p class="eyebrow">Account</p>
+<h1>Log in</h1>
+{{with $f.Errors.form}}<div class="errbox" role="alert">{{.}}</div>{{end}}
+<form class="form" method="post" action="/login">
+  <input type="hidden" name="next" value="{{$f.Next}}">
+  <div class="field"><label for="email">Email</label><input id="email" type="email" name="email" value="{{$f.Email}}" required autocomplete="email"></div>
+  <div class="field"><label for="password">Password</label><input id="password" type="password" name="password" required autocomplete="current-password"></div>
+  <button class="btn" type="submit">Log in</button>
+</form>
+<p class="help"><a href="/forgot">Forgot your password?</a> · New here? <a href="/register">Create an account</a></p>
+{{end}}

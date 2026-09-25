@@ -1,0 +1,10 @@
+<a class="card" href="/products/{{.C.Slug}}">
+  {{if .C.ImageFile}}<img src="{{imgURL (deref .C.ImageFile) 400}}" srcset="{{srcset (deref .C.ImageFile) (derefInt .C.ImageWidth)}}" sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw" width="{{derefInt .C.ImageWidth}}" height="{{derefInt .C.ImageHeight}}" alt="{{deref .C.ImageAlt}}"{{if not .Eager}} loading="lazy"{{end}} decoding="async">{{else}}<div class="ph" role="img" aria-label="No image yet"></div>{{end}}
+  <div class="body">
+    <p class="name">{{.C.Name}}</p>
+    <div class="line">
+      <span class="price">{{if gt .C.VariantCount 1}}from {{end}}{{taka .C.MinPrice}}</span>
+      <span class="hint">{{if not .C.InStock}}Sold out{{else if gt .C.VariantCount 1}}{{.C.VariantCount}} options{{end}}</span>
+    </div>
+  </div>
+</a>

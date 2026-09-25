@@ -74,7 +74,7 @@ Deviation from the spec's layout, locked here: storefront and admin handlers sha
 **Interfaces:**
 - Produces: `config.Config` struct and `config.Load() (Config, error)`, `config.LoadDotEnv(path string) error`, `Config.Secure() bool`. The binary supports `-healthcheck`.
 
-- [ ] **Step 1: Create the module and gitignore**
+- [x] **Step 1: Create the module and gitignore**
 
 ```bash
 mkdir -p avalonshop/internal/config && cd avalonshop
@@ -86,7 +86,7 @@ EOF
 cd .. && printf '.superpowers/\navalonshop/data/\navalonshop/.env\n' > .gitignore
 ```
 
-- [ ] **Step 2: Write the failing config test**
+- [x] **Step 2: Write the failing config test**
 
 `avalonshop/internal/config/config_test.go`:
 
@@ -160,12 +160,12 @@ func TestLoadDotEnv(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run the test to verify it fails**
+- [x] **Step 3: Run the test to verify it fails**
 
 Run: `cd avalonshop && go test ./internal/config/`
 Expected: FAIL, `undefined: load`
 
-- [ ] **Step 4: Write config.go**
+- [x] **Step 4: Write config.go**
 
 ```go
 // Package config reads settings from the environment.
@@ -271,12 +271,12 @@ func LoadDotEnv(path string) error {
 }
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `go test ./internal/config/`
 Expected: PASS
 
-- [ ] **Step 6: Write main.go with /healthz and the -healthcheck probe**
+- [x] **Step 6: Write main.go with /healthz and the -healthcheck probe**
 
 ```go
 package main
@@ -355,7 +355,7 @@ func run(log *slog.Logger) error {
 }
 ```
 
-- [ ] **Step 7: Write Dockerfile, compose, .env.example, .dockerignore, README**
+- [x] **Step 7: Write Dockerfile, compose, .env.example, .dockerignore, README**
 
 `avalonshop/Dockerfile`:
 
@@ -471,7 +471,7 @@ Open http://localhost:8080. With `SMTP_HOST` empty, emails are printed to stdout
 See the "Deploy" section at the bottom (filled in by the final task).
 ```
 
-- [ ] **Step 8: Verify build and health**
+- [x] **Step 8: Verify build and health**
 
 Run: `cd avalonshop && go vet ./... && go build -o /tmp/avalonshop . && echo ok`
 Expected: `ok`
@@ -479,7 +479,7 @@ Expected: `ok`
 Run (in one shell): `DATABASE_URL=x BASE_URL=http://localhost:8080 SESSION_SECRET=$(printf '0%.0s' {1..64}) MAIL_FROM=a@b.c ORDER_NOTIFY_EMAIL=a@b.c /tmp/avalonshop & sleep 1; /tmp/avalonshop -healthcheck; echo "exit=$?"; kill %1`
 Expected: `exit=0`
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add .gitignore avalonshop
@@ -497,11 +497,11 @@ git commit -m "feat(shop): scaffold Go module, config, health endpoint, Docker"
 **Interfaces:**
 - Produces: `store.Migrate(ctx, db *pgxpool.Pool, fsys fs.FS) error` (reads `migrations/*.sql` from fsys), `store.New(db *pgxpool.Pool) *Store`, errors `store.ErrNotFound`, `store.ErrInUse`, `store.ErrDuplicate`, `storetest.Pool(t testing.TB) *pgxpool.Pool` (skips without `TEST_DATABASE_URL`, resets schema, runs migrations).
 
-- [ ] **Step 1: Add pgx**
+- [x] **Step 1: Add pgx**
 
-Run: `cd avalonshop && go get github.com/jackc/pgx/v5@latest && go mod tidy`
+Run: `cd avalonshop && go get github.com/jackc/pgx/v5@latest`. Run `go mod tidy` after Step 4 introduces imports; otherwise it removes the unused dependency (approved implementation correction).
 
-- [ ] **Step 2: Write the schema**
+- [x] **Step 2: Write the schema**
 
 `avalonshop/migrations/0001_init.sql`:
 
@@ -604,7 +604,7 @@ create table order_items (
 create index order_items_order_idx on order_items(order_id);
 ```
 
-- [ ] **Step 3: Write store.go and the test helper**
+- [x] **Step 3: Write store.go and the test helper**
 
 `avalonshop/internal/store/store.go`:
 
@@ -705,7 +705,7 @@ func root(t testing.TB) string {
 }
 ```
 
-- [ ] **Step 4: Write the failing migration test**
+- [x] **Step 4: Write the failing migration test**
 
 `avalonshop/internal/store/migrate_test.go`:
 
@@ -741,12 +741,12 @@ func TestMigrateIdempotent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 5: Run to verify it fails**
+- [x] **Step 5: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/`
 Expected: FAIL, `undefined: store.Migrate`
 
-- [ ] **Step 6: Write migrate.go**
+- [x] **Step 6: Write migrate.go**
 
 ```go
 package store
@@ -810,12 +810,12 @@ func Migrate(ctx context.Context, db *pgxpool.Pool, fsys fs.FS) error {
 }
 ```
 
-- [ ] **Step 7: Run to verify it passes**
+- [x] **Step 7: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS (and `go test ./internal/store/` without the env var prints SKIP)
 
-- [ ] **Step 8: Wire migrations into main.go**
+- [x] **Step 8: Wire migrations into main.go**
 
 Add to imports: `"embed"`, `"avalonshop/internal/store"`, `"github.com/jackc/pgx/v5/pgxpool"`. Add above `main`:
 
@@ -838,7 +838,7 @@ In `run`, after `defer stop()`:
 	_ = store.New(pool) // used from Task 10 on
 ```
 
-- [ ] **Step 9: Verify and commit**
+- [x] **Step 9: Verify and commit**
 
 Run: `go vet ./... && go build ./... && echo ok`
 Expected: `ok`
@@ -864,7 +864,11 @@ git commit -m "feat(shop): schema and embedded migration runner"
   - `(Signer) ResetToken(userID int64, exp time.Time, passwordHash string) string`, `(Signer) ParseReset(tok string, now time.Time, lookupHash func(int64) (string, bool)) (int64, bool)`
   - `(Signer) OrderToken(number string) string` (16 hex chars), `(Signer) VerifyOrderToken(number, t string) bool`
 
-- [ ] **Step 1: Write the failing tests**
+**Implementation corrections (approved minor-correction policy):** Bind reset signatures to the entire password hash, not `hashPrefix`, so any password hash change invalidates the token. Reject session/reset tokens at `now.Unix() >= exp`, and reject nonpositive reset user IDs before lookup. Tests use fixed times and add expiry-boundary, shared-hash-prefix, malformed-input, wrong-key, and cart-filtering coverage; interfaces, architecture, and task order are unchanged.
+
+**Verification:** `go test ./internal/token/` first failed with `undefined: New`; it passed after implementation. All 13 token tests passed with 100% statement coverage using `go test -count=1 -cover ./internal/token/`. `go vet ./...` and `go test -count=1 -v ./...` passed; the migration test skipped because `TEST_DATABASE_URL` was unset, as permitted by the latest instruction. Parent will perform final database-backed validation.
+
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/token/token_test.go`:
 
@@ -960,12 +964,12 @@ func TestOrderToken(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `go test ./internal/token/`
 Expected: FAIL, `undefined: New`
 
-- [ ] **Step 3: Write token.go**
+- [x] **Step 3: Write token.go**
 
 ```go
 // Package token signs small values so they can live in cookies and URLs.
@@ -1093,12 +1097,12 @@ func (s Signer) VerifyOrderToken(number, t string) bool {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `go test ./internal/token/`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add avalonshop/internal/token
@@ -1119,7 +1123,7 @@ git commit -m "feat(shop): HMAC token package for cart, session, reset, order li
   - `store.Slugify(s string) string`; `(*Store) UniqueSlug(ctx, table, base string, excludeID int64) (string, error)` where table is `"products"` or `"categories"`
   - `money.Format(n int) string` → `"৳ 1,200"`
 
-- [ ] **Step 1: Write failing unit tests for slug and money**
+- [x] **Step 1: Write failing unit tests for slug and money**
 
 `avalonshop/internal/store/slug_test.go`:
 
@@ -1161,12 +1165,12 @@ func TestFormat(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `go test ./internal/store/ ./internal/money/`
 Expected: FAIL, `undefined: Slugify` and `undefined: Format`
 
-- [ ] **Step 3: Write slug.go and money.go**
+- [x] **Step 3: Write slug.go and money.go**
 
 `avalonshop/internal/store/slug.go`:
 
@@ -1263,12 +1267,12 @@ func Format(n int) string {
 }
 ```
 
-- [ ] **Step 4: Run to verify they pass**
+- [x] **Step 4: Run to verify they pass**
 
 Run: `go mod tidy && go test ./internal/store/ ./internal/money/`
 Expected: PASS
 
-- [ ] **Step 5: Write the failing DB tests for categories and zones**
+- [x] **Step 5: Write the failing DB tests for categories and zones**
 
 `avalonshop/internal/store/categories_test.go`:
 
@@ -1359,12 +1363,12 @@ func TestZonesCRUD(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run to verify it fails**
+- [x] **Step 6: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Categories|Zones'`
 Expected: FAIL, `undefined: store.Category`
 
-- [ ] **Step 7: Write categories.go and zones.go**
+- [x] **Step 7: Write categories.go and zones.go**
 
 `avalonshop/internal/store/categories.go`:
 
@@ -1503,12 +1507,12 @@ func (s *Store) DeleteZone(ctx context.Context, id int64) error {
 }
 ```
 
-- [ ] **Step 8: Run to verify it passes**
+- [x] **Step 8: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add avalonshop
@@ -1533,7 +1537,7 @@ git commit -m "feat(shop): categories, zones, slugify, money formatting"
   - `AddImage(img Image) (int64, error)`, `ListImages(productID int64) ([]Image, error)`, `UpdateImageAlt(id int64, alt string) error`, `MoveImage(id int64, up bool) error`, `DeleteImage(id int64) (Image, error)`
   - `VariantsForCart(ids []int64) ([]CartVariant, error)`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/store/products_test.go`:
 
@@ -1688,12 +1692,12 @@ func TestImagesOrderAndCartLookup(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Product|Images'`
 Expected: FAIL, `undefined: store.Product`
 
-- [ ] **Step 3: Write products.go**
+- [x] **Step 3: Write products.go**
 
 ```go
 package store
@@ -1985,7 +1989,7 @@ func (s *Store) VariantsForCart(ctx context.Context, ids []int64) ([]CartVariant
 }
 ```
 
-- [ ] **Step 4: Write images.go**
+- [x] **Step 4: Write images.go**
 
 ```go
 package store
@@ -2088,12 +2092,12 @@ func (s *Store) DeleteImage(ctx context.Context, id int64) (Image, error) {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add avalonshop/internal/store
@@ -2111,11 +2115,11 @@ git commit -m "feat(shop): product, variant, image queries and cart lookup"
 **Interfaces:**
 - Produces: `store.User{ID int64; Email, PasswordHash, Name, Phone, Address, Role string; CreatedAt time.Time}`; `CreateUser(ctx, email, passwordHash, name, role string) (User, error)` (ErrDuplicate on same email, case-insensitive), `GetUserByEmail(ctx, email) (User, error)`, `GetUser(ctx, id) (User, error)`, `UpdateProfile(ctx, id, name, phone, address) error`, `UpdatePassword(ctx, id, hash) error`, `SeedAdmin(ctx, email, password string) error` (no-op if either is empty or an admin already exists), `ListOrdersByUser` lives in Task 7.
 
-- [ ] **Step 1: Add bcrypt**
+- [x] **Step 1: Add bcrypt**
 
 Run: `go get golang.org/x/crypto@latest && go mod tidy`
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `avalonshop/internal/store/users_test.go`:
 
@@ -2184,12 +2188,12 @@ func TestSeedAdmin(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Users|Seed'`
 Expected: FAIL, `undefined: st.CreateUser`
 
-- [ ] **Step 4: Write users.go**
+- [x] **Step 4: Write users.go**
 
 ```go
 package store
@@ -2278,12 +2282,12 @@ func (s *Store) SeedAdmin(ctx context.Context, email, password string) error {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/...`
 Expected: PASS
 
-- [ ] **Step 6: Call SeedAdmin from main.go**
+- [x] **Step 6: Call SeedAdmin from main.go**
 
 Replace `_ = store.New(pool) // used from Task 10 on` with:
 
@@ -2295,7 +2299,7 @@ Replace `_ = store.New(pool) // used from Task 10 on` with:
 	_ = st // handed to the app in Task 10
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
@@ -2316,7 +2320,7 @@ git commit -m "feat(shop): users store and first-admin seed"
   - `type ErrOutOfStock struct{ VariantID int64; Name string; Available int }` implementing `error`
   - `PlaceOrder(ctx, NewOrder) (OrderFull, error)`, `GetOrderByNumber(ctx, number) (OrderFull, error)`, `GetOrder(ctx, id) (OrderFull, error)`, `ListOrders(ctx, status string, limit int) ([]Order, error)` (status "" = all), `ListOrdersByUser(ctx, userID) ([]Order, error)`, `UpdateOrderStatus(ctx, id, to string) (OrderFull, error)` (ErrTransition; restores stock on cancel), `SetAdminNote(ctx, id, note) error`, `CanTransition(from, to string) bool`, `Dashboard(ctx) (Dashboard, error)` with `Dashboard{NewOrders int; LowStock []LowStock; Recent []Order}`, `LowStock{ProductName, VariantName string; Stock int}`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/store/orders_test.go`:
 
@@ -2473,12 +2477,12 @@ func TestDashboard(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/ -run 'Order|Transition|Dashboard'`
 Expected: FAIL, `undefined: store.NewOrder`
 
-- [ ] **Step 3: Write orders.go**
+- [x] **Step 3: Write orders.go**
 
 ```go
 package store
@@ -2739,12 +2743,12 @@ func (s *Store) Dashboard(ctx context.Context) (Dashboard, error) {
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [x] **Step 4: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=postgres://avalon:avalon@localhost:5432/avalon?sslmode=disable go test ./internal/store/... -count=1`
 Expected: PASS (including the concurrent test)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add avalonshop/internal/store
@@ -2768,11 +2772,11 @@ git commit -m "feat(shop): orders with row-locked stock decrement and status tra
   - `img.Remove(dir, stem string, width int)` deletes all files for the stem (best effort)
   - `img.Orientation(jpeg []byte) int` (1–8; 1 when absent)
 
-- [ ] **Step 1: Add dependencies**
+- [x] **Step 1: Add dependencies**
 
 Run: `cd avalonshop && go get golang.org/x/image@latest github.com/gen2brain/webp@latest && go mod tidy`
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `avalonshop/internal/img/img_test.go`:
 
@@ -2922,12 +2926,12 @@ func TestOrientationParseAndApply(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `go test ./internal/img/`
 Expected: FAIL, `undefined: Process`
 
-- [ ] **Step 4: Write exif.go**
+- [x] **Step 4: Write exif.go**
 
 ```go
 package img
@@ -3004,7 +3008,7 @@ func tiffOrientation(seg []byte) int {
 }
 ```
 
-- [ ] **Step 5: Write img.go**
+- [x] **Step 5: Write img.go**
 
 ```go
 // Package img turns an uploaded image into oriented, metadata-free WebP variants.
@@ -3173,12 +3177,12 @@ func applyOrientation(src image.Image, o int) image.Image {
 }
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `go test ./internal/img/`
 Expected: PASS. Note the first WebP encode warms up the wasm-transpiled encoder; the package tests may take a few seconds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
@@ -3199,7 +3203,7 @@ git commit -m "feat(shop): image pipeline with EXIF orientation and WebP variant
   - `password_reset`: `map[string]any{"Name": string, "ResetURL": string}`
 - Templates get a `taka` function.
 
-- [ ] **Step 1: Write the email templates**
+- [x] **Step 1: Write the email templates**
 
 Each template's first line is `Subject: ...`, then a blank line, then the body.
 
@@ -3293,7 +3297,7 @@ Use this link within one hour to set a new password:
 If you didn't ask for this, ignore this email.
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `avalonshop/internal/mail/mail_test.go`:
 
@@ -3346,12 +3350,12 @@ func TestBuildMessage(t *testing.T) {
 }
 ```
 
-- [ ] **Step 3: Run to verify it fails**
+- [x] **Step 3: Run to verify it fails**
 
 Run: `go test ./internal/mail/`
 Expected: FAIL, `undefined: New`
 
-- [ ] **Step 4: Write mail.go**
+- [x] **Step 4: Write mail.go**
 
 ```go
 // Package mail renders plain-text templates and sends them over SMTP.
@@ -3441,12 +3445,12 @@ func buildMessage(from, to, subject, body string) []byte {
 }
 ```
 
-- [ ] **Step 5: Run to verify it passes**
+- [x] **Step 5: Run to verify it passes**
 
 Run: `go test ./internal/mail/`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add avalonshop
@@ -3471,7 +3475,7 @@ git commit -m "feat(shop): SMTP mailer with plain-text templates"
   - Template funcs: `taka`, `imgURL stem width`, `srcset stem width`, `dhaka time`, `deref *string`, `derefInt *int`, `add`, `mul`, `jsonld any`
   - Routes registered here: `GET /healthz`, `GET /static/`, `GET /media/`, and a `/` fallback that renders the 404 page. Later tasks add lines to `routes()`.
 
-- [ ] **Step 1: Fetch htmx and fonts, write the favicon**
+- [x] **Step 1: Fetch htmx and fonts, write the favicon**
 
 ```bash
 cd avalonshop && mkdir -p static/fonts
@@ -3497,7 +3501,7 @@ If the Google CSS endpoint is unreachable, fall back to the TTFs from the google
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#1f6b3a"/><path d="M16 6l8 20h-4.4l-1.7-4.6h-3.8L12.4 26H8z M15.2 18.2h1.6L16 14.6z" fill="#fff"/></svg>
 ```
 
-- [ ] **Step 2: Write app.css**
+- [x] **Step 2: Write app.css**
 
 `avalonshop/static/app.css` (the whole design system; keep it under 15 KB):
 
@@ -3690,7 +3694,7 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 @media(prefers-reduced-motion:reduce){.drawer,.scrim,.card{transition:none}.card:hover{transform:none}}
 ```
 
-- [ ] **Step 3: Write app.js**
+- [x] **Step 3: Write app.js**
 
 `avalonshop/static/app.js` (no inline handlers anywhere, CSP forbids them):
 
@@ -3758,7 +3762,7 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 })();
 ```
 
-- [ ] **Step 4: Write the layouts and partials**
+- [x] **Step 4: Write the layouts and partials**
 
 `avalonshop/templates/layout.html`:
 
@@ -3857,7 +3861,7 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 </html>
 ```
 
-- [ ] **Step 5: Write the failing tests**
+- [x] **Step 5: Write the failing tests**
 
 `avalonshop/internal/app/limiter_test.go`:
 
@@ -4033,12 +4037,12 @@ func TestPlainResponseWithoutGzip(t *testing.T) {
 }
 ```
 
-- [ ] **Step 6: Run to verify it fails**
+- [x] **Step 6: Run to verify it fails**
 
 Run: `go test ./internal/app/`
 Expected: FAIL, `undefined: New` / `undefined: newLimiter`
 
-- [ ] **Step 7: Write limiter.go**
+- [x] **Step 7: Write limiter.go**
 
 ```go
 package app
@@ -4123,7 +4127,7 @@ func clientIP(r *http.Request) string {
 }
 ```
 
-- [ ] **Step 8: Write middleware.go**
+- [x] **Step 8: Write middleware.go**
 
 ```go
 package app
@@ -4260,7 +4264,7 @@ func immutable(next http.Handler) http.Handler {
 }
 ```
 
-- [ ] **Step 9: Write cookies.go**
+- [x] **Step 9: Write cookies.go**
 
 ```go
 package app
@@ -4328,7 +4332,7 @@ func (a *App) popFlash(w http.ResponseWriter, r *http.Request) string {
 }
 ```
 
-- [ ] **Step 10: Write render.go**
+- [x] **Step 10: Write render.go**
 
 ```go
 package app
@@ -4500,7 +4504,7 @@ func (a *App) redirect(w http.ResponseWriter, r *http.Request, url string) {
 }
 ```
 
-- [ ] **Step 11: Write app.go**
+- [x] **Step 11: Write app.go**
 
 ```go
 // Package app is the HTTP layer: storefront and admin handlers, rendering, middleware.
@@ -4589,12 +4593,12 @@ func (a *App) Handler() http.Handler {
 }
 ```
 
-- [ ] **Step 12: Run to verify it passes**
+- [x] **Step 12: Run to verify it passes**
 
 Run: `go vet ./... && go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 13: Wire the app into main.go**
+- [x] **Step 13: Wire the app into main.go**
 
 Replace the whole `main.go` with:
 
@@ -4712,7 +4716,7 @@ func run(log *slog.Logger) error {
 }
 ```
 
-- [ ] **Step 14: Smoke run and commit**
+- [x] **Step 14: Smoke run and commit**
 
 Run: `go build ./... && go run . &` with a `.env` from `.env.example` and local Postgres up, then `curl -sI http://localhost:8080/static/app.css | grep -i cache-control` → expect `immutable`; `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/nope` → `404`. Stop with `kill %1`.
 
@@ -4734,7 +4738,7 @@ git commit -m "feat(shop): app core with layouts, design system, middleware, sta
 - Produces: routes `GET /{$}`, `GET /products`, `GET /products/{slug}`; helpers `truncate(s string, n int) string`, `selectedVariant([]store.Variant) store.Variant`, `(*App) productJSONLD(store.ProductFull) template.JS`; template func `cardData card index` → `{C store.ProductCard; Eager bool}`.
 - **Speed and SEO rules baked in here:** first-row cards load eagerly, the rest lazy; product hero image `fetchpriority="high"`; every image has `width`, `height`, `srcset`, `sizes`; JSON-LD Product with per-variant offers; search results are `noindex`; category pages get a canonical with the category query.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/store_pages_test.go`:
 
@@ -4878,12 +4882,12 @@ func TestTruncateAndSelectedVariant(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run 'Home|ProductPage|Truncate'`
 Expected: FAIL, `undefined: truncate`
 
-- [ ] **Step 3: Add the `cardData` template func**
+- [x] **Step 3: Add the `cardData` template func**
 
 In `render.go`, add to the `template.FuncMap` returned by `funcs()`:
 
@@ -4891,7 +4895,7 @@ In `render.go`, add to the `template.FuncMap` returned by `funcs()`:
 		"cardData": func(c store.ProductCard, i int) map[string]any { return map[string]any{"C": c, "Eager": i < 4} },
 ```
 
-- [ ] **Step 4: Write store_pages.go**
+- [x] **Step 4: Write store_pages.go**
 
 ```go
 package app
@@ -5061,7 +5065,7 @@ func (a *App) productJSONLD(p store.ProductFull, desc string) template.JS {
 }
 ```
 
-- [ ] **Step 5: Register the routes**
+- [x] **Step 5: Register the routes**
 
 In `app.go` `routes()`, above the `m.HandleFunc("/", a.notFound)` line, add:
 
@@ -5071,7 +5075,7 @@ In `app.go` `routes()`, above the `m.HandleFunc("/", a.notFound)` line, add:
 	m.HandleFunc("GET /products/{slug}", a.product)
 ```
 
-- [ ] **Step 6: Write the templates**
+- [x] **Step 6: Write the templates**
 
 `avalonshop/templates/partials/product_card.html`:
 
@@ -5159,12 +5163,12 @@ In `app.go` `routes()`, above the `m.HandleFunc("/", a.notFound)` line, add:
 {{end}}
 ```
 
-- [ ] **Step 7: Run to verify it passes**
+- [x] **Step 7: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add avalonshop
@@ -5183,7 +5187,7 @@ git commit -m "feat(shop): home, listing, and product pages with SEO metadata an
 - Consumes: `token.CartLine`, `a.cartLines`, `a.saveCart`, `store.VariantsForCart`.
 - Produces: routes `GET /cart`, `GET /cart/drawer`, `POST /cart/items` (form `variant_id`, `qty`), `POST /cart/items/{id}` (form `qty`, 0 removes); types `cartLineView{store.CartVariant; Qty, LineTotal int; Short bool}`, `cartView{Lines []cartLineView; Subtotal, Count int}`; `(*App) buildCart(ctx, lines) (cartView, []token.CartLine, error)` returning the lines that survived (vanished/inactive variants dropped). Checkout (Task 13) reuses `buildCart`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/cart_test.go`:
 
@@ -5295,12 +5299,12 @@ func TestCartDropsInactiveAndFlagsShort(t *testing.T) {
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run Cart`
 Expected: FAIL with 404s (routes missing)
 
-- [ ] **Step 3: Write cart.go**
+- [x] **Step 3: Write cart.go**
 
 ```go
 package app
@@ -5474,7 +5478,7 @@ func (a *App) cartPage(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -5485,7 +5489,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("POST /cart/items/{id}", a.cartUpdate)
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/partials/cart_drawer.html`:
 
@@ -5555,12 +5559,12 @@ Add to `app.css` under the cart section: `.cl .err{color:var(--danger)}`.
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
@@ -5579,7 +5583,7 @@ git commit -m "feat(shop): cookie cart with HTMX drawer and cart page"
 - Consumes: `a.loadCart`/`a.buildCart` (Task 12), `store.PlaceOrder`, `store.ListZones`, `store.GetOrderByNumber`, `a.tok.OrderToken`, `mail.Send`, `a.checkoutLimit`.
 - Produces: routes `GET /checkout`, `POST /checkout`, `GET /checkout/totals?zone_id=`, `GET /orders/{number}?t=`; `normalizePhone(s) (string, bool)`, `validEmail(s) bool`, `(*App) orderURL(number) string`, `(*App) orderMailData(store.OrderFull) map[string]any`, `(*App) sendOrderMails(o store.OrderFull, customerTmpl, adminTmpl string)` (Task 18 reuses this for shipped/delivered), `totalsView{Subtotal, Fee, Total int; HasZone bool}`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/checkout_test.go`:
 
@@ -5708,12 +5712,12 @@ func TestPhoneAndEmail(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run 'Checkout|Phone'`
 Expected: FAIL, `undefined: normalizePhone`
 
-- [ ] **Step 3: Write checkout.go**
+- [x] **Step 3: Write checkout.go**
 
 ```go
 package app
@@ -5957,7 +5961,7 @@ func (a *App) orderPage(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -5968,7 +5972,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("GET /orders/{number}", a.orderPage)
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/partials/checkout_totals.html`:
 
@@ -6039,12 +6043,12 @@ In `routes()`, above the `/` fallback:
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
@@ -6063,7 +6067,7 @@ git commit -m "feat(shop): checkout with zone fees, order page, confirmation ema
 - Consumes: `store.CreateUser`, `GetUserByEmail`, `GetUser`, `UpdateProfile`, `UpdatePassword`, `ListOrdersByUser`; `a.tok.ResetToken/ParseReset`; `a.login/logout`; `a.loginLimit`, `a.forgotLimit`; `mail.Send`.
 - Produces: routes `GET|POST /login`, `GET|POST /register`, `POST /logout`, `GET|POST /forgot`, `GET|POST /reset/{token}`, `GET|POST /account`; `(*App) requireUser(h http.HandlerFunc) http.HandlerFunc` (redirects to `/login?next=`), `safeNext(s) string`. Admin login goes through the same `/login`; admins land on `/admin`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/auth_test.go`:
 
@@ -6233,12 +6237,12 @@ func TestAccountProfileAndOrders(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run 'Register|LoginRate|Forgot|AccountProfile'`
 Expected: FAIL (404s and undefined helpers)
 
-- [ ] **Step 3: Write auth.go**
+- [x] **Step 3: Write auth.go**
 
 ```go
 package app
@@ -6488,7 +6492,7 @@ func (a *App) accountPost(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -6506,7 +6510,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("POST /account", a.requireUser(a.accountPost))
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/store/login.html`:
 
@@ -6603,12 +6607,12 @@ In `routes()`, above the `/` fallback:
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes**
+- [x] **Step 6: Run to verify it passes**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add avalonshop
@@ -6627,7 +6631,7 @@ git commit -m "feat(shop): customer accounts with login, registration, password 
 - Consumes: `store.ActiveProductsForSitemap`, `store.ListCategories`.
 - Produces: `GET /sitemap.xml` (`application/xml`, `Cache-Control: public, max-age=3600`), `GET /robots.txt`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `avalonshop/internal/app/sitemap_test.go`:
 
@@ -6669,12 +6673,12 @@ func TestSitemapAndRobots(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run Sitemap`
 Expected: FAIL (404)
 
-- [ ] **Step 3: Write sitemap.go**
+- [x] **Step 3: Write sitemap.go**
 
 ```go
 package app
@@ -6731,7 +6735,7 @@ func (a *App) robots(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -6740,7 +6744,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("GET /robots.txt", a.robots)
 ```
 
-- [ ] **Step 5: Run to verify it passes, then commit**
+- [x] **Step 5: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
@@ -6762,7 +6766,7 @@ git commit -m "feat(shop): sitemap.xml and robots.txt"
 - Consumes: `store.Dashboard`, category and zone CRUD, `store.Slugify`, `store.UniqueSlug`.
 - Produces: `(*App) requireAdmin(h http.HandlerFunc) http.HandlerFunc` (404 for anyone who is not `role = admin`), routes `GET /admin`, `GET /admin/categories`, `POST /admin/categories`, `POST /admin/categories/{id}`, `POST /admin/categories/{id}/delete`, `GET /admin/zones`, `POST /admin/zones`, `POST /admin/zones/{id}`, `POST /admin/zones/{id}/delete`; partial `order_rows.html` (takes `[]store.Order`), reused by Task 18; test helper `adminSession(t, a, st) string` (cookie header for a seeded admin).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/admin_test.go`:
 
@@ -6876,12 +6880,12 @@ func TestAdminZones(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run Admin`
 Expected: FAIL (404 for admin routes even as admin)
 
-- [ ] **Step 3: Write admin.go**
+- [x] **Step 3: Write admin.go**
 
 ```go
 package app
@@ -7065,7 +7069,7 @@ func (a *App) adminZoneDelete(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, above the `/` fallback:
 
@@ -7082,7 +7086,7 @@ In `routes()`, above the `/` fallback:
 	m.HandleFunc("POST /admin/zones/{id}/delete", adm(a.adminZoneDelete))
 ```
 
-- [ ] **Step 5: Write the templates**
+- [x] **Step 5: Write the templates**
 
 `avalonshop/templates/partials/order_rows.html`:
 
@@ -7172,7 +7176,7 @@ In `routes()`, above the `/` fallback:
 {{end}}
 ```
 
-- [ ] **Step 6: Run to verify it passes, then commit**
+- [x] **Step 6: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
@@ -7194,7 +7198,7 @@ git commit -m "feat(shop): admin access control, dashboard, categories, delivery
 - Consumes: `store.ListProductsAdmin`, `GetProduct`, `CreateProduct`, `UpdateProduct`, `DeleteProduct`, `UniqueSlug`, `Slugify`, image methods, `img.Process`, `img.Remove`.
 - Produces: routes `GET /admin/products`, `GET /admin/products/new`, `POST /admin/products/new`, `GET /admin/products/variant-row`, `GET /admin/products/{id}`, `POST /admin/products/{id}`, `POST /admin/products/{id}/delete`, `POST /admin/products/{id}/images` (multipart field `images`, up to 10 files, 10 MB each), `POST /admin/images/{id}` (form `alt`, `product_id`), `POST /admin/images/{id}/move` (form `dir` = up|down, `product_id`), `POST /admin/images/{id}/delete`; `parseProductForm(r) (store.Product, []store.Variant, map[string]string)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/admin_products_test.go`:
 
@@ -7377,12 +7381,12 @@ func TestAdminProductDeleteRefusedWhenOrdered(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run AdminProduct`
 Expected: FAIL (404s)
 
-- [ ] **Step 3: Write admin_products.go**
+- [x] **Step 3: Write admin_products.go**
 
 ```go
 package app
@@ -7685,7 +7689,7 @@ func (a *App) adminImageDelete(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 4: Register the routes**
+- [x] **Step 4: Register the routes**
 
 In `routes()`, after the zone routes:
 
@@ -7703,7 +7707,7 @@ In `routes()`, after the zone routes:
 	m.HandleFunc("POST /admin/images/{id}/delete", adm(a.adminImageDelete))
 ```
 
-- [ ] **Step 5: Small static additions**
+- [x] **Step 5: Small static additions**
 
 Append to `static/app.js` inside the `click` listener, before its closing brace:
 
@@ -7720,7 +7724,7 @@ Append to `static/app.css`:
 .imgs form input[type=text]{margin:.4rem 0 .3rem}
 ```
 
-- [ ] **Step 6: Write the templates**
+- [x] **Step 6: Write the templates**
 
 `avalonshop/templates/partials/variant_row.html`:
 
@@ -7825,7 +7829,7 @@ Add two funcs to `funcs()` in `render.go`:
 		},
 ```
 
-- [ ] **Step 7: Run to verify it passes, then commit**
+- [x] **Step 7: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/`
 Expected: PASS
@@ -7847,7 +7851,7 @@ git commit -m "feat(shop): admin product editor with variants and image uploads"
 - Consumes: `store.ListOrders`, `GetOrder`, `UpdateOrderStatus`, `SetAdminNote`, `a.sendOrderMails`, `order_rows.html`.
 - Produces: `store.NextStatuses(from string) []string`; routes `GET /admin/orders?status=` (default `new`; `all` shows everything), `GET /admin/orders/{id}`, `POST /admin/orders/{id}/status` (form `status`), `POST /admin/orders/{id}/note` (form `note`).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `avalonshop/internal/app/admin_orders_test.go`:
 
@@ -7916,12 +7920,12 @@ func TestAdminOrdersFlow(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `TEST_DATABASE_URL=... go test ./internal/app/ -run AdminOrders`
 Expected: FAIL (404)
 
-- [ ] **Step 3: Add NextStatuses to the store**
+- [x] **Step 3: Add NextStatuses to the store**
 
 In `internal/store/orders.go`, below `CanTransition`:
 
@@ -7930,7 +7934,7 @@ In `internal/store/orders.go`, below `CanTransition`:
 func NextStatuses(from string) []string { return transitions[from] }
 ```
 
-- [ ] **Step 4: Write admin_orders.go**
+- [x] **Step 4: Write admin_orders.go**
 
 ```go
 package app
@@ -8013,7 +8017,7 @@ func (a *App) adminOrderNote(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-- [ ] **Step 5: Register the routes**
+- [x] **Step 5: Register the routes**
 
 In `routes()`, after the product routes:
 
@@ -8024,7 +8028,7 @@ In `routes()`, after the product routes:
 	m.HandleFunc("POST /admin/orders/{id}/note", adm(a.adminOrderNote))
 ```
 
-- [ ] **Step 6: Write the templates**
+- [x] **Step 6: Write the templates**
 
 `avalonshop/templates/admin/orders.html`:
 
@@ -8072,7 +8076,7 @@ In `routes()`, after the product routes:
 {{end}}
 ```
 
-- [ ] **Step 7: Run to verify it passes, then commit**
+- [x] **Step 7: Run to verify it passes, then commit**
 
 Run: `TEST_DATABASE_URL=... go test ./...`
 Expected: PASS across all packages

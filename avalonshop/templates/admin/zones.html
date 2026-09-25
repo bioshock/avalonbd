@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Delivery zones</h1>
+<p class="help">Customers pick one at checkout. Inactive zones are hidden but kept for old orders.</p>
+<form class="form" method="post" action="/admin/zones">
+  <div class="row">
+    <div class="field"><label for="new-name">New zone</label><input id="new-name" type="text" name="name" required placeholder="e.g. Inside Rajshahi"></div>
+    <div class="field"><label for="new-fee">Fee (৳)</label><input id="new-fee" type="number" name="fee" min="0" value="0" required></div>
+  </div>
+  <div class="field"><label class="check"><input type="checkbox" name="active" checked> Active</label></div>
+  <button class="btn sm" type="submit">Add zone</button>
+</form>
+<div class="table-wrap"><table>
+<thead><tr><th>Name</th><th>Fee</th><th>Active</th><th>Sort</th><th></th></tr></thead>
+<tbody>{{range .Data}}<tr>
+  <td><input form="z{{.ID}}" type="text" name="name" value="{{.Name}}" aria-label="Name"></td>
+  <td><input form="z{{.ID}}" type="number" name="fee" min="0" value="{{.Fee}}" required aria-label="Fee"></td>
+  <td><input form="z{{.ID}}" type="checkbox" name="active"{{if .Active}} checked{{end}} aria-label="Active"></td>
+  <td><input form="z{{.ID}}" type="number" name="sort" value="{{.Sort}}" aria-label="Sort"></td>
+  <td><button form="z{{.ID}}" class="btn sm" type="submit">Save</button> <button form="dz{{.ID}}" class="btn sm ghost" type="submit">Delete</button></td>
+</tr>{{else}}<tr><td colspan="5" class="empty">No zones yet. Add one before customers can check out.</td></tr>{{end}}</tbody>
+</table></div>
+{{range .Data}}<form id="z{{.ID}}" method="post" action="/admin/zones/{{.ID}}"></form><form id="dz{{.ID}}" method="post" action="/admin/zones/{{.ID}}/delete" hx-post="/admin/zones/{{.ID}}/delete" hx-confirm="Delete zone “{{.Name}}”?"></form>{{end}}
+{{end}}

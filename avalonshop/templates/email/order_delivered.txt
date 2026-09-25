@@ -1,0 +1,9 @@
+Subject: Order {{.Order.Number}} delivered — Avalon
+
+Hi {{.Order.Name}},
+
+Order {{.Order.Number}} is marked delivered. Thank you for buying from Avalon.
+
+If anything is wrong with your order, reply to this email.
+
+Avalon Corporation · Rajshahi

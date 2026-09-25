@@ -1,0 +1,17 @@
+Subject: New order {{.Order.Number}} — {{taka .Order.Total}} — {{.Order.Name}}
+
+New order {{.Order.Number}}
+
+Customer: {{.Order.Name}}
+Phone: {{.Order.Phone}}
+Email: {{.Order.Email}}
+Zone: {{.Order.ZoneName}} ({{taka .Order.DeliveryFee}})
+Address:
+{{.Order.Address}}
+{{if .Order.Note}}
+Customer note: {{.Order.Note}}
+{{end}}Items:
+{{range .Items}}- {{.ProductName}} ({{.VariantName}}) × {{.Qty}} — {{taka .UnitPrice}}
+{{end}}Total: {{taka .Order.Total}}
+
+Manage: {{.AdminURL}}

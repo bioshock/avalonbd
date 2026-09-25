@@ -1,0 +1,12 @@
+<div class="totals">
+  <span>Subtotal</span><span class="mono">{{taka .Subtotal}}</span>
+  <span>Delivery</span><span class="mono">{{if .HasZone}}{{taka .Fee}}{{else}}—{{end}}</span>
+  <span class="big">Total</span><span class="big price">{{taka .Total}}</span>
+</div>
+<!-- Hidden fields carrying what this page is showing right now, so the
+     server can tell at POST time whether a price or fee changed underneath
+     the customer (C1). form="checkout-form" attaches them to the checkout
+     form even though this partial lives outside it, and gets refreshed
+     here whenever the zone picker's HTMX request swaps in a new total. -->
+<input type="hidden" name="subtotal" value="{{.Subtotal}}" form="checkout-form">
+<input type="hidden" name="fee" value="{{.Fee}}" form="checkout-form">

@@ -1,0 +1,20 @@
+{{define "content"}}{{$o := .Data}}
+<p class="eyebrow">Order {{$o.Number}}</p>
+<h1>{{if eq $o.Status "new"}}Thank you, {{$o.Name}}!{{else}}Order {{$o.Number}}{{end}}</h1>
+<p>Status: <span class="status {{$o.Status}}">{{$o.Status}}</span> <span class="help">· placed {{dhaka $o.CreatedAt}}</span></p>
+{{if eq $o.Status "new"}}<p>We'll call {{$o.Phone}} to confirm before delivery. Keep this page's link to check status.</p>{{end}}
+<div class="cart-page">
+  <div class="table-wrap"><table>
+    <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Amount</th></tr></thead>
+    <tbody>{{range $o.Items}}<tr><td>{{.ProductName}} <span class="muted">{{.VariantName}}</span></td><td class="num">{{.Qty}}</td><td class="num">{{taka (mul .UnitPrice .Qty)}}</td></tr>{{end}}</tbody>
+  </table></div>
+  <aside class="panel">
+    <div class="totals"><span>Subtotal</span><span class="mono">{{taka $o.Subtotal}}</span><span>Delivery ({{$o.ZoneName}})</span><span class="mono">{{taka $o.DeliveryFee}}</span><span class="big">Total</span><span class="big price">{{taka $o.Total}}</span></div>
+    <p class="help">Pay {{taka $o.Total}} in cash on delivery.</p>
+    <h3>Deliver to</h3>
+    <p class="desc">{{$o.Name}}
+{{$o.Phone}}
+{{$o.Address}}</p>
+  </aside>
+</div>
+{{end}}

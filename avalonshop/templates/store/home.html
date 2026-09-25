@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="hero">
+  <p class="eyebrow">Fresh from Rajshahi</p>
+  <h1>Good things,<br>grown well.</h1>
+  <p>Small batches. Honest sourcing. Cash on delivery anywhere in Bangladesh.</p>
+  <a class="btn" href="/products">Shop now</a>
+</section>
+{{with .Data.Categories}}<div class="chips">{{range .}}<a class="chip" href="/products?category={{.Slug}}">{{.Name}}</a>{{end}}</div>{{end}}
+<div class="section-head"><h2>Featured</h2><a href="/products">All products →</a></div>
+{{if .Data.Featured}}<div class="grid">{{range $i, $c := .Data.Featured}}{{template "product_card.html" (cardData $c $i)}}{{end}}</div>
+{{else}}<p class="empty">Products are on their way.</p>{{end}}
+{{end}}

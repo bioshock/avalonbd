@@ -1,0 +1,8 @@
+{{define "content"}}{{$d := .Data}}
+<h1>Orders</h1>
+<div class="chips">
+  {{$cur := $d.Status}}{{range $d.Statuses}}<a class="chip{{if eq . $cur}} on{{end}}" href="/admin/orders?status={{.}}">{{.}}</a>{{end}}
+  <a class="chip{{if eq $cur "all"}} on{{end}}" href="/admin/orders?status=all">all</a>
+</div>
+{{template "order_rows.html" $d.Orders}}
+{{end}}
