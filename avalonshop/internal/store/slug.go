@@ -10,9 +10,10 @@ import (
 )
 
 // Slugify lowercases, strips accents, keeps [a-z0-9], and joins with hyphens.
-// Non-Latin scripts are dropped; the admin can edit the slug by hand.
+// Bangla text is transliterated to Latin first (see Transliterate); any other
+// non-Latin script is dropped, and the admin can edit the slug by hand.
 func Slugify(s string) string {
-	s = norm.NFD.String(strings.ToLower(s))
+	s = norm.NFD.String(strings.ToLower(Transliterate(s)))
 	var b strings.Builder
 	dash := false
 	for _, r := range s {
