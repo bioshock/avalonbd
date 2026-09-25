@@ -1,11 +1,15 @@
 package store
 
-import "testing"
+import (
+	"testing"
+	"unicode"
+)
 
 // TestTransliterate isolates each of the four abugida rules from the brief,
-// plus the digit/chandrabindu/anusvara/visarga mappings and the taka sign,
-// so a regression in any one of them fails on its own rather than only
-// through a compound Slugify case.
+// the nukta-letter rules added in fix round 1 (ড়/ঢ়/য় and the "-ওয়া" glide),
+// plus the digit/chandrabindu/anusvara/visarga mappings and the taka sign, so
+// a regression in any one of them fails on its own rather than only through
+// a compound Slugify case.
 func TestTransliterate(t *testing.T) {
 	cases := []struct {
 		name string
@@ -66,12 +70,13 @@ func TestTransliterate(t *testing.T) {
 			want: "0123456789",
 		},
 		{
-			name: "taka sign is not transliterated",
+			name: "taka sign is dropped, not transliterated",
 			// U+09F3 sits in the Bengali Unicode block but is not a
-			// letter; it must pass through untouched, not turn into a
-			// word like "taka".
+			// letter. Fix round 1 (C2): Transliterate must never return a
+			// Bengali-block rune, so this is dropped here rather than
+			// passed through for Slugify's filter to drop later.
 			in:   "৳100",
-			want: "৳100",
+			want: "100",
 		},
 		{
 			name: "word-initial আ is aa",
@@ -94,12 +99,51 @@ func TestTransliterate(t *testing.T) {
 			want: "koa",
 		},
 		{
-			name: "an unmapped Bangla letter passes through unchanged",
-			// KHANDA TA (U+09CE) has no entry in banglaConsonants; it is
-			// dropped later by Slugify's filter, exactly like today's
-			// behaviour for any other unrecognised rune.
+			name: "a nukta letter (decomposed) still takes its own matra",
+			// বড়ি (bori, "lentil dumpling"): ড়  is spelled as ড + nukta
+			// (U+09A1 U+09BC), the normal decomposed form. Fix round 1
+			// (C1): the matra ি that follows the nukta must still attach
+			// to ড়, not leak through as a raw rune because the lookahead
+			// only checked the rune immediately after the base consonant.
+			in:   "বড়ি",
+			want: "bori",
+		},
+		{
+			name: "a bare nukta letter never takes the inherent vowel",
+			// ময়দা (moyda, "flour"): য় (nukta form) sits between ম and
+			// দ with no matra of its own. Fix round 1 (C1): unlike an
+			// ordinary consonant, ড়/ঢ়/য় never take the "o" filler, so
+			// this reads "moyda", not "moyoda".
+			in:   "ময়দা",
+			want: "moyda",
+		},
+		{
+			name: `ও followed by a bare nukta য় contracts to a "wa" glide`,
+			// খাওয়া (khawa, "to eat"): the common "-ওয়া" ending. ও
+			// contributes nothing on its own here; য় (nukta form)
+			// becomes "w" and takes its own matra normally.
+			in:   "খাওয়া",
+			want: "khawa",
+		},
+		{
+			name: "a precomposed nukta letter is handled the same as decomposed",
+			// The same word as above ("bori"), but with the precomposed
+			// single-codepoint ড় (U+09DC) instead of ড + nukta. Real text
+			// is not expected to use this spelling (see Transliterate's
+			// doc comment), but the defensive fallback table entry must
+			// still work and must not take the inherent vowel either.
+			in:   "ব" + "ড়" + "ি",
+			want: "bori",
+		},
+		{
+			name: "an unmapped Bangla letter is dropped, not passed through",
+			// KHANDA TA (U+09CE) has no entry in banglaConsonants and is
+			// listed in banglaDeliberatelyDropped. Fix round 1 (C2):
+			// Transliterate itself drops it (rather than passing it
+			// through for Slugify's filter to drop later), so it never
+			// appears in Transliterate's return value.
 			in:   "ৎ",
-			want: "ৎ",
+			want: "",
 		},
 		{
 			name: "latin text is untouched",
@@ -120,4 +164,112 @@ func TestTransliterate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTransliterateNeverReturnsBengaliRunes is fix round 1's C2 invariant:
+// Transliterate must never return a rune in the Bengali Unicode block
+// (U+0980-U+09FF), whether that rune is fully unmapped (like the taka sign)
+// or only partially consumed (like a matra stranded by a nukta-letter bug).
+// Slugify's later NFD/filter pass happens to strip stray Bengali runes too,
+// which is exactly how the missing-nukta-matra bug (fix round 1, C1) went
+// undetected: the corpus below is every case from TestTransliterate plus the
+// five real product names that first exposed the bug, and every required
+// case from TestSlugify.
+func TestTransliterateNeverReturnsBengaliRunes(t *testing.T) {
+	corpus := []string{
+		"মন", "দিন", "রাত্রি", "তেল", "চাঁদ", "রং", "দুঃখ",
+		"০১২৩৪৫৬৭৮৯", "৳100", "আম", "আম আম", "কআ",
+		"বড়ি", "ময়দা", "খাওয়া", "ব" + "ড়" + "ি", "ৎ",
+		"Hello, World! 123", "",
+		"হলুদ গুঁড়া", "আটা ময়দা সুজি", "গাওয়া ঘি", "চিনিগুঁড়া চাল", "প্রিমিয়াম মধু",
+		"আম", "মধু", "তেল", "খাঁটি সরিষার তেল", "আম (Mango) 5kg", "মধু Honey 500g", "ঘি",
+		"৳500 Gift Box", "৳৫০০ উপহার বক্স",
+	}
+
+	for _, in := range corpus {
+		out := Transliterate(in)
+		for _, r := range out {
+			if r >= 0x0980 && r <= 0x09FF {
+				t.Errorf("Transliterate(%q) = %q contains Bengali-block rune %q (U+%04X)", in, out, r, r)
+			}
+		}
+	}
+}
+
+// TestBanglaTableIsComplete is fix round 1's M1: it walks every Bengali
+// letter, matra, and digit code point Unicode has assigned, and fails if any
+// is neither mapped (banglaConsonants / banglaVowels / banglaMatras /
+// banglaDigits) nor in banglaDeliberatelyDropped. Without this test, a
+// letter like ড়/ঢ়/য় can be silently missing from the table forever: nothing
+// else notices, because Transliterate already has a generic fallback for any
+// rune it does not recognise.
+func TestBanglaTableIsComplete(t *testing.T) {
+	assigned := func(lo, hi rune) []rune {
+		var out []rune
+		for cp := lo; cp <= hi; cp++ {
+			if unicode.Is(unicode.Bengali, cp) {
+				out = append(out, cp)
+			}
+		}
+		return out
+	}
+
+	t.Run("letters", func(t *testing.T) {
+		ranges := [][2]rune{
+			{0x0985, 0x09B9},
+			{0x09CE, 0x09CE},
+			{0x09DC, 0x09DF},
+			{0x09F0, 0x09F1},
+		}
+		for _, rg := range ranges {
+			for _, cp := range assigned(rg[0], rg[1]) {
+				_, consonant := banglaConsonants[cp]
+				_, vowel := banglaVowels[cp]
+				reason, dropped := banglaDeliberatelyDropped[cp]
+				switch {
+				case consonant, vowel:
+					// mapped
+				case dropped && reason == "":
+					t.Errorf("U+%04X is in banglaDeliberatelyDropped with no reason", cp)
+				case dropped:
+					// documented, deliberate
+				default:
+					t.Errorf("U+%04X is an assigned Bangla letter with no entry in "+
+						"banglaConsonants, banglaVowels, or banglaDeliberatelyDropped", cp)
+				}
+			}
+		}
+	})
+
+	t.Run("matras", func(t *testing.T) {
+		ranges := [][2]rune{
+			{0x09BE, 0x09CC},
+			{0x09D7, 0x09D7},
+		}
+		for _, rg := range ranges {
+			for _, cp := range assigned(rg[0], rg[1]) {
+				_, matra := banglaMatras[cp]
+				reason, dropped := banglaDeliberatelyDropped[cp]
+				switch {
+				case matra:
+					// mapped
+				case dropped && reason == "":
+					t.Errorf("U+%04X is in banglaDeliberatelyDropped with no reason", cp)
+				case dropped:
+					// documented, deliberate
+				default:
+					t.Errorf("U+%04X is an assigned Bangla matra with no entry in "+
+						"banglaMatras or banglaDeliberatelyDropped", cp)
+				}
+			}
+		}
+	})
+
+	t.Run("digits", func(t *testing.T) {
+		for _, cp := range assigned(0x09E6, 0x09EF) {
+			if _, ok := banglaDigits[cp]; !ok {
+				t.Errorf("U+%04X is an assigned Bangla digit with no entry in banglaDigits", cp)
+			}
+		}
+	})
 }

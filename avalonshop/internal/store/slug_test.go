@@ -15,8 +15,16 @@ func TestSlugify(t *testing.T) {
 		"মধু Honey 500g":   "modhu-honey-500g",
 		"ঘি":               "ghi",
 		"৳500 Gift Box":    "500-gift-box",
-		"---":              "item",
-		"":                 "item",
+		// Fix round 1: real product names probed against the committed
+		// code (not written by the brief's author), which exposed the
+		// missing ড়/ঢ়/য় (nukta letter) handling.
+		"হলুদ গুঁড়া":    "holud-gura",
+		"আটা ময়দা সুজি": "aata-moyda-suji",
+		"গাওয়া ঘি":      "gawa-ghi",
+		"চিনিগুঁড়া চাল": "chinigura-chal",
+		"প্রিমিয়াম মধু": "primiyam-modhu",
+		"---": "item",
+		"":    "item",
 	}
 	for in, want := range cases {
 		if got := Slugify(in); got != want {
