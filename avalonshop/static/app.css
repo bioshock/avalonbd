@@ -3,7 +3,7 @@
 @font-face{font-family:"DM Mono";font-style:normal;font-weight:500;font-display:swap;src:url(/static/fonts/dmmono-500.woff2) format("woff2")}
 
 :root{
-  --ground:#fff;--tint:#eef4ef;--ink:#14201c;--muted:#6b7f72;--line:#e6ebe8;
+  --ground:#fff;--tint:#eef4ef;--ink:#14201c;--muted:#5f7266;--line:#e6ebe8;
   --accent:#1f6b3a;--accent-ink:#fff;--foot:#14201c;--foot-ink:#c8d3cc;
   --danger:#b3261e;--ok:#1f6b3a;--radius:10px;--radius-pill:999px;
   --font:Manrope,system-ui,-apple-system,"Segoe UI",sans-serif;
