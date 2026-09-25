@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -23,9 +24,38 @@ func checkoutFixture(t *testing.T) (*App, *store.Store, string, int64) {
 	return a, st, cookieHeader(w, "cart"), zone
 }
 
-func checkoutBody(zone int64, phone string) string {
-	v := url.Values{"name": {"Ana"}, "phone": {phone}, "email": {"ana@example.com"}, "address": {"House 1, Road 2, Rajshahi"}, "zone_id": {itoa(zone)}, "note": {"ring the bell"}}
+// checkoutBody builds a checkout POST body. subtotal/fee are the hidden C1
+// fields the real page would have rendered; pass the current values from
+// currentCheckoutTotals when the test needs to reach PlaceOrder, or 0,0 when
+// an earlier validation error (bad phone, no zone) is expected to short
+// circuit before the price check ever runs.
+func checkoutBody(zone int64, phone string, subtotal, fee int) string {
+	v := url.Values{
+		"name": {"Ana"}, "phone": {phone}, "email": {"ana@example.com"}, "address": {"House 1, Road 2, Rajshahi"},
+		"zone_id": {itoa(zone)}, "note": {"ring the bell"},
+		"subtotal": {itoa(int64(subtotal))}, "fee": {itoa(int64(fee))},
+	}
 	return v.Encode()
+}
+
+// currentCheckoutTotals mirrors what the checkout page would render for this
+// cart cookie and zone right now — the same subtotal/fee the hidden C1
+// fields would carry. Tests use it to keep checkoutBody honest about the
+// real totals, distinguishing "the price genuinely changed" (the C1 test)
+// from "the test just didn't send matching hidden fields" (every other test).
+func currentCheckoutTotals(t *testing.T, a *App, cart string, zoneID int64) totalsView {
+	t.Helper()
+	req := httptest.NewRequest("GET", "/checkout", nil)
+	req.Header.Set("Cookie", "cart="+cart)
+	v, _, err := a.buildCart(context.Background(), a.cartLines(req))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, totals, err := a.zoneTotals(context.Background(), v.Subtotal, zoneID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return totals
 }
 
 func TestCheckoutHappyPath(t *testing.T) {
@@ -38,7 +68,8 @@ func TestCheckoutHappyPath(t *testing.T) {
 	if w.Code != 200 || !strings.Contains(w.Body.String(), "৳ 1,360") {
 		t.Fatalf("totals partial: %d\n%s", w.Code, w.Body.String())
 	}
-	w = do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "+88 01712-345678")), "Cookie", "cart="+cart)
+	totals := currentCheckoutTotals(t, a, cart, zone)
+	w = do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "+88 01712-345678", totals.Subtotal, totals.Fee)), "Cookie", "cart="+cart)
 	loc := w.Header().Get("Location")
 	if w.Code != 303 || !strings.HasPrefix(loc, "/orders/AV-001001?t=") {
 		t.Fatalf("place order: %d %s\n%s", w.Code, loc, w.Body.String())
@@ -72,11 +103,13 @@ func TestCheckoutHappyPath(t *testing.T) {
 
 func TestCheckoutValidationAndOversell(t *testing.T) {
 	a, _, cart, zone := checkoutFixture(t)
-	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "12345")), "Cookie", "cart="+cart)
+	// Subtotal/fee are irrelevant for these two: validation fails before the
+	// C1 price check is ever reached.
+	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "12345", 0, 0)), "Cookie", "cart="+cart)
 	if w.Code != 422 || !strings.Contains(w.Body.String(), "valid Bangladeshi mobile") {
 		t.Fatalf("bad phone: %d", w.Code)
 	}
-	w = do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(0, "01712345678")), "Cookie", "cart="+cart)
+	w = do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(0, "01712345678", 0, 0)), "Cookie", "cart="+cart)
 	if w.Code != 422 || !strings.Contains(w.Body.String(), "Choose a delivery area") {
 		t.Fatalf("missing zone: %d", w.Code)
 	}
@@ -85,7 +118,11 @@ func TestCheckoutValidationAndOversell(t *testing.T) {
 	v1, _ := variantIDs(t, a, slug)
 	w = do(t, a, "POST", "/cart/items/"+itoa(v1), strings.NewReader("qty=9"), "Cookie", "cart="+cart)
 	cart = cookieHeader(w, "cart")
-	w = do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "01712345678")), "Cookie", "cart="+cart)
+	// This must reach PlaceOrder's oversell check, so the hidden fields have
+	// to match the real (post-bump) totals or the C1 guard would reject it
+	// first with the wrong error.
+	totals := currentCheckoutTotals(t, a, cart, zone)
+	w = do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "01712345678", totals.Subtotal, totals.Fee)), "Cookie", "cart="+cart)
 	if w.Code != 422 || !strings.Contains(w.Body.String(), "Only 5 of") {
 		t.Fatalf("oversell: %d\n%s", w.Code, w.Body.String())
 	}
@@ -103,7 +140,9 @@ func TestCheckoutInactiveZone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(inactive, "01712345678")), "Cookie", "cart="+cart)
+	// Subtotal/fee are irrelevant: the inactive-zone check (HasZone) rejects
+	// this before the C1 price check runs.
+	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(inactive, "01712345678", 0, 0)), "Cookie", "cart="+cart)
 	body := w.Body.String()
 	if w.Code != 422 || !strings.Contains(body, "no longer available") {
 		t.Fatalf("inactive zone: %d\n%s", w.Code, body)
@@ -139,8 +178,10 @@ func TestCheckoutTotalsNoJS(t *testing.T) {
 func TestCheckoutRateLimit(t *testing.T) {
 	a, _, cart, zone := checkoutFixture(t)
 	a.checkoutLimit = newLimiter(1, time.Hour)
-	do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "bad")), "Cookie", "cart="+cart)
-	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "01712345678")), "Cookie", "cart="+cart)
+	// Both attempts are rejected by the limiter before any other check runs,
+	// so subtotal/fee are irrelevant here.
+	do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "bad", 0, 0)), "Cookie", "cart="+cart)
+	w := do(t, a, "POST", "/checkout", strings.NewReader(checkoutBody(zone, "01712345678", 0, 0)), "Cookie", "cart="+cart)
 	if w.Code != 429 {
 		t.Fatalf("second attempt should be rate limited, got %d", w.Code)
 	}
@@ -180,5 +221,61 @@ func TestTotalsFor(t *testing.T) {
 		if got := totalsFor(1300, zones, c.zoneID); got != c.want {
 			t.Errorf("%s: totalsFor(1300, zones, %d) = %+v, want %+v", c.name, c.zoneID, got, c.want)
 		}
+	}
+}
+
+// TestCheckoutRejectsPriceChangeBetweenRenderAndSubmit is the C1 fix. It
+// reproduces the reviewer's exact measured sequence: the checkout page
+// renders a ৳1,360 total (subtotal 1300, fee 60), then a variant's price
+// changes 650 -> 5000 behind the customer's back, then the customer submits
+// with the browser's stale hidden fields still reading 1300/60. Before the
+// fix, PlaceOrder silently recomputed the new subtotal (10000) and charged
+// total 10060 with no warning. After the fix, the mismatch must be rejected
+// and no order placed.
+func TestCheckoutRejectsPriceChangeBetweenRenderAndSubmit(t *testing.T) {
+	a, st, cart, zone := checkoutFixture(t)
+	w := do(t, a, "GET", "/checkout", nil, "Cookie", "cart="+cart)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "৳ 1,360") {
+		t.Fatalf("checkout should render ৳1,360 before the price change: %d\n%s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `name="subtotal" value="1300"`) || !strings.Contains(w.Body.String(), `name="fee" value="60"`) {
+		t.Fatalf("checkout page must carry the shown subtotal/fee as hidden fields:\n%s", w.Body.String())
+	}
+	totals := currentCheckoutTotals(t, a, cart, zone)
+	if totals.Subtotal != 1300 || totals.Fee != 60 || totals.Total != 1360 {
+		t.Fatalf("fixture assumption changed, update the test: %+v", totals)
+	}
+
+	// Admin changes the variant's price behind the customer's back — the
+	// reviewer's exact trigger, 650 -> 5000 — while the customer's checkout
+	// tab still shows the old total.
+	slug := "wild-forest-honey"
+	v1, _ := variantIDs(t, a, slug)
+	p, err := a.st.GetProductBySlug(context.Background(), slug, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range p.Variants {
+		if p.Variants[i].ID == v1 {
+			p.Variants[i].Price = 5000
+		}
+	}
+	if err := a.st.UpdateProduct(context.Background(), p.Product, p.Variants); err != nil {
+		t.Fatal(err)
+	}
+
+	// The customer submits with the browser's stale hidden fields (still
+	// 1300/60, exactly what the rendered page above carried).
+	body := checkoutBody(zone, "01712345678", totals.Subtotal, totals.Fee)
+	w = do(t, a, "POST", "/checkout", strings.NewReader(body), "Cookie", "cart="+cart)
+	if w.Code != 422 || !strings.Contains(w.Body.String(), "changed") {
+		t.Fatalf("price change must be rejected with a review prompt, not silently charged: %d\n%s", w.Code, w.Body.String())
+	}
+	orders, err := st.ListOrders(context.Background(), "", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(orders) != 0 {
+		t.Fatalf("no order should have been placed when the price changed underneath the customer: got %d orders, first total %d", len(orders), orders[0].Total)
 	}
 }

@@ -4,7 +4,7 @@
 <h1>Delivery details</h1>
 {{if $d.Error}}<div class="errbox" role="alert">{{$d.Error}}</div>{{end}}
 <div class="cart-page">
-<form class="form wide" method="post" action="/checkout" novalidate>
+<form id="checkout-form" class="form wide" method="post" action="/checkout" novalidate>
   <div class="row">
     <div class="field"><label for="name">Full name</label><input id="name" type="text" name="name" value="{{$f.Name}}" required autocomplete="name">{{with $f.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
     <div class="field"><label for="phone">Mobile number</label><input id="phone" type="tel" name="phone" value="{{$f.Phone}}" required autocomplete="tel" placeholder="01712 345678">{{with $f.Errors.phone}}<p class="err">{{.}}</p>{{end}}</div>

@@ -136,6 +136,70 @@ func TestAdminProductVariantSortIsHonoured(t *testing.T) {
 	}
 }
 
+// TestAdminProductSaveDoesNotResetStockUnderConcurrentOrder is the C2 fix. It
+// reproduces the reviewer's exact measured sequence: stock 10 -> a customer
+// orders 3 (stock 7) -> the admin saves the edit form they already had open
+// before the order landed, changing only the product name -> before the fix,
+// syncVariants wrote the rendered stock (10) back absolutely, and a later
+// cancel then credited the order's qty on top of that, reaching 13 units of
+// stock that don't exist. After the fix the admin's save must leave the
+// decremented stock alone, and cancelling must land back on exactly 10.
+func TestAdminProductSaveDoesNotResetStockUnderConcurrentOrder(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+
+	id, err := st.CreateProduct(ctx, store.Product{Slug: "p", Name: "Original Name", Active: true}, []store.Variant{{Name: "x", Price: 100, Stock: 10}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, _ := st.GetProduct(ctx, id)
+	variantID := p.Variants[0].ID
+
+	// Admin opens the edit form while stock is still 10 — this is the
+	// rendered value the hidden variant_stock_was field carries.
+	w := do(t, a, "GET", "/admin/products/"+itoa(id), nil, "Cookie", adm)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `name="variant_stock_was" value="10"`) {
+		t.Fatalf("edit form should carry the rendered stock as variant_stock_was: %d\n%s", w.Code, w.Body.String())
+	}
+
+	// Customer orders 3 while the admin's tab is still open.
+	zone, _ := st.CreateZone(ctx, store.Zone{Name: "Z", Fee: 0, Active: true})
+	o, err := st.PlaceOrder(ctx, store.NewOrder{Name: "C", Phone: "01712345678", Email: "c@example.com", Address: "somewhere far enough", ZoneID: zone, Lines: []store.OrderLine{{VariantID: variantID, Qty: 3}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := st.GetProduct(ctx, id); p.Variants[0].Stock != 7 {
+		t.Fatalf("stock after order should be 7, got %d", p.Variants[0].Stock)
+	}
+
+	// Admin submits the form they already had open — same stock (10) as
+	// rendered, only the name changed. This must NOT reset stock to 10.
+	form := productForm("Renamed Product", []string{itoa(variantID), "x", "", "100", "10"})
+	form.Add("variant_stock_was", "10")
+	w = do(t, a, "POST", "/admin/products/"+itoa(id), strings.NewReader(form.Encode()), "Cookie", adm)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("save: %d\n%s", w.Code, w.Body.String())
+	}
+	p2, _ := st.GetProduct(ctx, id)
+	if p2.Name != "Renamed Product" {
+		t.Fatalf("name should have been updated: %+v", p2)
+	}
+	if p2.Variants[0].Stock != 7 {
+		t.Fatalf("admin save must not reset stock: got %d, want 7 (the current, decremented value)", p2.Variants[0].Stock)
+	}
+
+	// Cancelling the order restores 3 onto the correct base (7), not onto a
+	// re-inflated 10.
+	if _, err := st.UpdateOrderStatus(ctx, o.ID, "cancelled"); err != nil {
+		t.Fatal(err)
+	}
+	p3, _ := st.GetProduct(ctx, id)
+	if p3.Variants[0].Stock != 10 {
+		t.Fatalf("stock after cancel should be 10 (7+3), got %d — the shop must not believe it has more stock than it does", p3.Variants[0].Stock)
+	}
+}
+
 func TestAdminProductImages(t *testing.T) {
 	a, st := newDBApp(t)
 	adm := adminSession(t, a, st)

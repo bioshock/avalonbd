@@ -132,6 +132,20 @@ func parseProductForm(r *http.Request) (store.Product, []store.Variant, map[stri
 		if err1 != nil || err2 != nil || price < 0 || stock < 0 {
 			errs["variants"] = "Price and stock must be whole numbers, 0 or more."
 		}
+		// C2: variant_stock_was carries the stock value this row was
+		// rendered with (a hidden field in variant_row.html). If the
+		// submitted stock still matches it, the admin never touched that
+		// field, so the save must not overwrite whatever stock decrements
+		// landed since the form was opened. A missing or unparseable
+		// variant_stock_was (an old cached form, or a brand-new row) falls
+		// back to the pre-fix behaviour of always writing the submitted
+		// stock.
+		skipStock := false
+		if id > 0 {
+			if was, err := strconv.Atoi(get("variant_stock_was")); err == nil && was == stock {
+				skipStock = true
+			}
+		}
 		// variant_sort is optional: fall back to row order when it's missing,
 		// blank, or not a number (task-17-decisions #6).
 		sort := len(vs)
@@ -141,7 +155,7 @@ func parseProductForm(r *http.Request) (store.Product, []store.Variant, map[stri
 			}
 		}
 		sku := get("variant_sku")
-		vs = append(vs, store.Variant{ID: id, Name: name, SKU: &sku, Price: price, Stock: stock, Sort: sort})
+		vs = append(vs, store.Variant{ID: id, Name: name, SKU: &sku, Price: price, Stock: stock, Sort: sort, SkipStockUpdate: skipStock})
 	}
 	if len(vs) == 0 {
 		errs["variants"] = "Add at least one variant (even a single default size)."

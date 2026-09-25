@@ -14,7 +14,13 @@ import (
 type checkoutForm struct {
 	Name, Phone, Email, Address, Note string
 	ZoneID                            int64
-	Errors                            map[string]string
+	// Subtotal and Fee are the hidden values the checkout page rendered for
+	// the customer. They carry no signature: the server always recomputes
+	// the real totals and only uses these to detect a price/fee change
+	// between render and submit (C1). A forged value can only cause a
+	// rejection, never a discount.
+	Subtotal, Fee int
+	Errors        map[string]string
 }
 
 type totalsView struct {
@@ -61,6 +67,8 @@ func parseCheckout(r *http.Request) checkoutForm {
 		Note: strings.TrimSpace(r.FormValue("note")), Errors: map[string]string{},
 	}
 	f.ZoneID, _ = strconv.ParseInt(r.FormValue("zone_id"), 10, 64)
+	f.Subtotal, _ = strconv.Atoi(r.FormValue("subtotal"))
+	f.Fee, _ = strconv.Atoi(r.FormValue("fee"))
 	if l := utf8.RuneCountInString(f.Name); l < 1 || l > 100 {
 		f.Errors["name"] = "Please enter your name."
 	}
@@ -188,12 +196,24 @@ func (a *App) checkoutPost(w http.ResponseWriter, r *http.Request) {
 	// Confirm the chosen zone is still active before placing the order: a zone
 	// deactivated between page render and submit must re-render the form (with
 	// the customer's other fields intact) rather than silently drop to /cart.
-	if _, totals, err := a.zoneTotals(r.Context(), v.Subtotal, f.ZoneID); err != nil {
+	_, totals, err := a.zoneTotals(r.Context(), v.Subtotal, f.ZoneID)
+	if err != nil {
 		a.serverError(w, r, err)
 		return
-	} else if !totals.HasZone {
+	}
+	if !totals.HasZone {
 		f.Errors["zone_id"] = "This delivery area is no longer available. Please choose another."
 		a.checkoutView(w, r, f, http.StatusUnprocessableEntity, "Please fix the highlighted fields.")
+		return
+	}
+	// C1: totals is the current, authoritative subtotal/fee for this cart and
+	// zone — the same computation checkoutView renders. f.Subtotal/f.Fee are
+	// the hidden values the customer's page was showing. If either moved
+	// (a variant repriced, or the zone's fee changed) between render and
+	// submit, the order must not be placed at a total the customer never
+	// saw — re-render with the current totals and ask them to confirm.
+	if totals.Subtotal != f.Subtotal || totals.Fee != f.Fee {
+		a.checkoutView(w, r, f, http.StatusUnprocessableEntity, "Prices have changed since you loaded this page. Please review your updated total below and place your order again.")
 		return
 	}
 	in := store.NewOrder{Name: f.Name, Phone: f.Phone, Email: f.Email, Address: f.Address, Note: f.Note, ZoneID: f.ZoneID}

@@ -50,6 +50,18 @@ func TestLoadMissing(t *testing.T) {
 	}
 }
 
+// TestLoadMailFromMustBeBareAddress is the C4 fix: a display-name form of
+// MAIL_FROM — exactly what Brevo's Senders screen shows and the natural
+// thing to paste — must be rejected at boot, not discovered when the first
+// order's email silently fails to send.
+func TestLoadMailFromMustBeBareAddress(t *testing.T) {
+	m := good()
+	m["MAIL_FROM"] = "Avalon Corporation <shop@example.com>"
+	if _, err := load(env(m)); err == nil || !strings.Contains(err.Error(), "MAIL_FROM") {
+		t.Fatalf("expected a MAIL_FROM error for a display-name address, got %v", err)
+	}
+}
+
 func TestLoadDotEnv(t *testing.T) {
 	p := filepath.Join(t.TempDir(), ".env")
 	os.WriteFile(p, []byte("# comment\nFOO_TEST=bar\nQUOTED_TEST=\"a b\"\n\n"), 0o600)

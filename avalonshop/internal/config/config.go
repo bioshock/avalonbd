@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/mail"
 	"os"
 	"strings"
 )
@@ -65,6 +66,18 @@ func load(get func(string) string) (Config, error) {
 		return c, errors.New("config: SESSION_SECRET must be at least 64 hex characters")
 	}
 	c.SessionSecret = sec
+
+	// MAIL_FROM is used as both the SMTP envelope sender and the From:
+	// header (internal/mail). A display-name form such as
+	// "Avalon Corporation <shop@avalonbd.com>" — the exact string Brevo's
+	// Senders screen shows, and the natural thing to paste — produces an
+	// invalid MAIL FROM:<...> on the wire that a real relay rejects, and
+	// because Send only logs failures, every order confirmation, tracking
+	// link, admin alert and password reset then fails silently. Reject it
+	// at boot instead (C4).
+	if addr, err := mail.ParseAddress(c.MailFrom); err != nil || addr.Address != c.MailFrom {
+		return c, fmt.Errorf("config: MAIL_FROM must be a bare email address with no display name (e.g. shop@avalonbd.com), got %q", c.MailFrom)
+	}
 	return c, nil
 }
 

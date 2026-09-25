@@ -3,6 +3,7 @@ package store_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"avalonshop/internal/store"
@@ -58,5 +59,30 @@ func TestSeedAdmin(t *testing.T) {
 	}
 	if _, err := st.GetUserByEmail(ctx, "second@example.com"); !errors.Is(err, store.ErrNotFound) {
 		t.Fatal("second admin should not be seeded once one exists")
+	}
+}
+
+// TestSeedAdminRejectsOverLongPasswordEarly is half of the C3 fix: an
+// ADMIN_PASSWORD over bcrypt's 72-byte limit is very reachable, since Bangla
+// is 3 bytes per rune in UTF-8 — a 24-character Bangla passphrase already
+// exceeds it. SeedAdmin must reject it itself, with a message naming the
+// limit, rather than letting bcrypt's raw "password length exceeds 72 bytes"
+// surface, and it must not create a half-seeded admin row.
+func TestSeedAdminRejectsOverLongPasswordEarly(t *testing.T) {
+	st := store.New(storetest.Pool(t))
+	ctx := context.Background()
+	longPass := strings.Repeat("অ", 30) // 90 bytes in UTF-8, well over 72
+	err := st.SeedAdmin(ctx, "admin@example.com", longPass)
+	if err == nil {
+		t.Fatal("expected an error for an over-long ADMIN_PASSWORD")
+	}
+	if !strings.Contains(err.Error(), "72") || !strings.Contains(err.Error(), "Bangla") {
+		t.Fatalf("error should name the 72-byte limit and the Bangla-bytes reason, got: %v", err)
+	}
+	if strings.Contains(err.Error(), "bcrypt:") {
+		t.Fatalf("the raw bcrypt error must not surface: %v", err)
+	}
+	if _, err := st.GetUserByEmail(ctx, "admin@example.com"); !errors.Is(err, store.ErrNotFound) {
+		t.Fatal("no admin should have been created with a rejected password")
 	}
 }

@@ -53,6 +53,20 @@ func probe() int {
 	return 0
 }
 
+// seedAdminOrWarn seeds the first admin account, but never treats a failure
+// as fatal to the storefront (C3): a duplicate ADMIN_EMAIL already held by a
+// non-admin user, or an over-long ADMIN_PASSWORD, used to return an error
+// that main() logged as "fatal" and exited on — Coolify then restarts with
+// the same env vars and fails again, forever. A storefront that is up
+// without a seeded admin is strictly better than a site that is down, so
+// this logs the problem and what to do about it, and lets the caller
+// continue booting.
+func seedAdminOrWarn(ctx context.Context, st *store.Store, log *slog.Logger, email, password string) {
+	if err := st.SeedAdmin(ctx, email, password); err != nil {
+		log.Error("seed admin failed; the storefront will keep serving without a newly seeded admin account — fix ADMIN_EMAIL/ADMIN_PASSWORD and redeploy, or promote an existing user to admin directly in the database", "err", err)
+	}
+}
+
 func run(log *slog.Logger) error {
 	if err := config.LoadDotEnv(".env"); err != nil {
 		return err
@@ -73,9 +87,7 @@ func run(log *slog.Logger) error {
 		return err
 	}
 	st := store.New(pool)
-	if err := st.SeedAdmin(ctx, cfg.AdminEmail, cfg.AdminPassword); err != nil {
-		return err
-	}
+	seedAdminOrWarn(ctx, st, log, cfg.AdminEmail, cfg.AdminPassword)
 	if err := os.MkdirAll(cfg.UploadDir, 0o755); err != nil {
 		return err
 	}

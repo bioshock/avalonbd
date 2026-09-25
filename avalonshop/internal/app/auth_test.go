@@ -132,6 +132,35 @@ func TestForgotAndReset(t *testing.T) {
 	}
 }
 
+// TestResetPageCanonicalDoesNotLeakToken is the M4 fix: the reset page's
+// canonical/og:url used to default to BASE_URL + the request path, and for
+// /reset/<token> the path IS the one-hour credential. Confirmed by
+// execution in the review. Neither tag may contain the token, and both must
+// point at /forgot instead.
+func TestResetPageCanonicalDoesNotLeakToken(t *testing.T) {
+	a, st := newDBApp(t)
+	u, err := st.CreateUser(context.Background(), "leak@example.com", "x", "Ana", "customer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok := a.tok.ResetToken(u.ID, time.Now().Add(time.Hour), u.PasswordHash)
+	w := do(t, a, "GET", "/reset/"+tok, nil)
+	body := w.Body.String()
+	if w.Code != 200 {
+		t.Fatalf("reset page: %d", w.Code)
+	}
+	if strings.Contains(body, tok) {
+		t.Fatalf("reset page must not leak the token anywhere in the body, found it in:\n%s", body)
+	}
+	want := a.cfg.BaseURL + "/forgot"
+	if !strings.Contains(body, `rel="canonical" href="`+want+`"`) {
+		t.Fatalf("canonical should point to %q, not the token URL:\n%s", want, body)
+	}
+	if !strings.Contains(body, `property="og:url" content="`+want+`"`) {
+		t.Fatalf("og:url should point to %q, not the token URL:\n%s", want, body)
+	}
+}
+
 func TestAccountProfileAndOrders(t *testing.T) {
 	a, st := newDBApp(t)
 	u, _ := st.CreateUser(context.Background(), "ana@example.com", "x", "Ana", "customer")

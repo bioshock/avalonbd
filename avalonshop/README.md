@@ -33,7 +33,9 @@ intermittent.
 2. Coolify generates `SERVICE_FQDN_APP`, `SERVICE_PASSWORD_POSTGRES`, and `SERVICE_HEX_64_SESSION`. Leave them.
 3. Add these environment variables in the Coolify UI:
    - `SMTP_USER`, `SMTP_PASS` — from Brevo → SMTP & API → SMTP (login is your Brevo account email, password is the SMTP key)
-   - `MAIL_FROM` — e.g. `shop@avalonbd.com` (must be a verified sender in Brevo)
+   - `MAIL_FROM` — e.g. `shop@avalonbd.com` (must be a verified sender in Brevo, and must be a **bare
+     address with no display name** — it doubles as the SMTP envelope sender, so pasting Brevo's own
+     `Avalon Corporation <shop@avalonbd.com>` display form will fail at boot instead of sending mail)
    - `ORDER_NOTIFY_EMAIL` — where new-order alerts go
    - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — the first admin; **remove both after the first successful login**
 4. On the `app` service, set the domain (e.g. `https://avalonbd.com`). `BASE_URL` follows it automatically.
@@ -84,6 +86,13 @@ compresses to as little as 291 KB.
   plus a conflict UI. The one part of a save that *is* safe under this race is slug history: the
   retired slug is captured under the product row's own lock inside the rename transaction, so two
   concurrent renames of the same product both get recorded correctly.
+- **Stock is the one field of that race with its own guard, and even it has a residual case.**
+  `syncVariants` only writes a variant's stock column when the submitted value differs from the
+  value the edit form was rendered with; if it matches, the admin didn't touch that field, and the
+  save leaves stock alone so an order placed while the form sat open isn't silently overwritten
+  back to its stale value. The residual case: an admin who *deliberately* edits stock on the same
+  variant an order lands against, at the same moment, is still last-write-wins between that save and
+  the order's decrement, exactly like every other field above.
 - **Category slugs have no rename history.** Renaming a category changes its listing URL
   (`/products?category=<slug>`); the old URL simply 404s. Products don't have this problem —
   renaming a product records the old slug, and its old URL 301s permanently to the new one — but

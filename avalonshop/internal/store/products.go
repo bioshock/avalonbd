@@ -29,6 +29,13 @@ type Variant struct {
 	Price     int
 	Stock     int
 	Sort      int
+	// SkipStockUpdate leaves an existing variant's stock column untouched on
+	// UpdateProduct instead of overwriting it with Stock. Its zero value
+	// (false) always writes Stock, matching every caller's existing
+	// behaviour; only the admin product form sets it, and only when the
+	// submitted stock equals the value the form was rendered with, i.e. the
+	// admin did not touch that field (C2). It has no effect on insert.
+	SkipStockUpdate bool `db:"-"`
 }
 
 type ProductFull struct {
@@ -229,9 +236,22 @@ func syncVariants(ctx context.Context, tx pgx.Tx, productID int64, vs []Variant)
 			sku = v.SKU
 		}
 		if v.ID > 0 {
-			if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, stock = $6, sort = $7 where id = $1 and product_id = $2`,
-				v.ID, productID, v.Name, sku, v.Price, v.Stock, v.Sort); err != nil {
-				return mapErr(err)
+			if v.SkipStockUpdate {
+				// The admin form was submitted with the same stock value it
+				// was rendered with, so the admin did not touch that field.
+				// Leave the stock column alone: an order placed after the
+				// form was opened but before it was saved must not have its
+				// decrement overwritten back to the stale rendered value
+				// (C2).
+				if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, sort = $6 where id = $1 and product_id = $2`,
+					v.ID, productID, v.Name, sku, v.Price, v.Sort); err != nil {
+					return mapErr(err)
+				}
+			} else {
+				if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, stock = $6, sort = $7 where id = $1 and product_id = $2`,
+					v.ID, productID, v.Name, sku, v.Price, v.Stock, v.Sort); err != nil {
+					return mapErr(err)
+				}
 			}
 			keep = append(keep, v.ID)
 		} else {

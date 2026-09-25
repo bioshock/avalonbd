@@ -154,6 +154,56 @@ func TestBodyLimits(t *testing.T) {
 	}
 }
 
+// TestSecurityInvariants is the M1 fix. The only prior CSP assertion in the
+// branch checked one substring of one directive, and four separate
+// mutations of shipped source (dropping frame-ancestors/form-action/base-uri
+// from the CSP; flipping cookie HttpOnly, SameSite and Secure) all left the
+// full suite green. This pins the exact CSP byte-for-byte and the exact
+// session-cookie attributes under both http:// and https:// BASE_URL.
+func TestSecurityInvariants(t *testing.T) {
+	a := newApp(t, nil)
+	w := do(t, a, "GET", "/no-such-page", nil) // any route: secureHeaders runs before routing
+	const wantCSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
+	if got := w.Header().Get("Content-Security-Policy"); got != wantCSP {
+		t.Fatalf("CSP = %q, want %q", got, wantCSP)
+	}
+
+	cases := []struct {
+		name       string
+		baseURL    string
+		wantSecure bool
+	}{
+		{"http", "http://localhost:8080", false},
+		{"https", "https://avalonbd.com", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			a := newApp(t, nil)
+			a.cfg.BaseURL = c.baseURL
+			rec := httptest.NewRecorder()
+			a.login(rec, 1)
+			var sess *http.Cookie
+			for _, ck := range rec.Result().Cookies() {
+				if ck.Name == "sess" {
+					sess = ck
+				}
+			}
+			if sess == nil {
+				t.Fatal("sess cookie was not set")
+			}
+			if !sess.HttpOnly {
+				t.Error("sess cookie must be HttpOnly")
+			}
+			if sess.SameSite != http.SameSiteLaxMode {
+				t.Errorf("sess cookie SameSite = %v, want Lax", sess.SameSite)
+			}
+			if sess.Secure != c.wantSecure {
+				t.Errorf("sess cookie Secure = %v, want %v for BASE_URL=%q", sess.Secure, c.wantSecure, c.baseURL)
+			}
+		})
+	}
+}
+
 // TestRangeRequestSkipsGzip ensures a 206 Partial Content response (from the
 // static file server answering a Range request) is never gzipped: gzipping it
 // would leave Content-Range describing the identity byte range while the body

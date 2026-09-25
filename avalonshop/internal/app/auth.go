@@ -202,20 +202,31 @@ func (a *App) lookupHash(ctx context.Context) func(int64) (string, bool) {
 	}
 }
 
+// resetPage renders the reset-password page with its Canonical pinned to
+// /forgot instead of the request path. The request path for this route is
+// /reset/<token>, and the token is a live one-hour credential — CSP and
+// noindex block a network leak (Task 14), but render.go's default Canonical
+// still put it into <link rel="canonical"> and <meta property="og:url">,
+// where it could land in a saved copy, a print, or a "share this page"
+// action (M4).
+func (a *App) resetPage(w http.ResponseWriter, r *http.Request, status int, f authForm) {
+	a.renderStatus(w, r, status, "store/reset.html", page{Title: "Choose a new password", NoIndex: true, Canonical: a.cfg.BaseURL + "/forgot", Data: f})
+}
+
 func (a *App) resetGet(w http.ResponseWriter, r *http.Request) {
 	_, ok := a.tok.ParseReset(r.PathValue("token"), time.Now(), a.lookupHash(r.Context()))
-	a.authPage(w, r, http.StatusOK, "reset", "Choose a new password", authForm{Invalid: !ok, Errors: map[string]string{}})
+	a.resetPage(w, r, http.StatusOK, authForm{Invalid: !ok, Errors: map[string]string{}})
 }
 
 func (a *App) resetPost(w http.ResponseWriter, r *http.Request) {
 	id, ok := a.tok.ParseReset(r.PathValue("token"), time.Now(), a.lookupHash(r.Context()))
 	if !ok {
-		a.authPage(w, r, http.StatusOK, "reset", "Choose a new password", authForm{Invalid: true, Errors: map[string]string{}})
+		a.resetPage(w, r, http.StatusOK, authForm{Invalid: true, Errors: map[string]string{}})
 		return
 	}
 	pw := r.FormValue("password")
 	if !validPassword(pw) {
-		a.authPage(w, r, http.StatusUnprocessableEntity, "reset", "Choose a new password", authForm{Errors: map[string]string{"password": passwordLengthMsg}})
+		a.resetPage(w, r, http.StatusUnprocessableEntity, authForm{Errors: map[string]string{"password": passwordLengthMsg}})
 		return
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost)

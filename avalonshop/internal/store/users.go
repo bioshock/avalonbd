@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -62,11 +63,23 @@ func (s *Store) UpdatePassword(ctx context.Context, id int64, hash string) error
 	return nil
 }
 
+// bcryptMaxPasswordBytes is bcrypt.GenerateFromPassword's hard limit: it
+// errors on any input longer than this. Checking it before calling bcrypt
+// turns a cryptic "bcrypt: password length exceeds 72 bytes" into a message
+// that names the limit and the reason it's easy to hit by accident (C3).
+const bcryptMaxPasswordBytes = 72
+
 // SeedAdmin creates the first admin from env on first boot. Does nothing if
-// email or password is empty, or if any admin already exists.
+// email or password is empty, or if any admin already exists. The caller
+// (main.go) must not treat a returned error as fatal to the whole server:
+// a seeding failure (a duplicate email, or an over-long password) must not
+// crash-loop the storefront (C3).
 func (s *Store) SeedAdmin(ctx context.Context, email, password string) error {
 	if email == "" || password == "" {
 		return nil
+	}
+	if len(password) > bcryptMaxPasswordBytes {
+		return fmt.Errorf("ADMIN_PASSWORD is %d bytes, over bcrypt's %d-byte limit; note that Bangla characters are 3 bytes each in UTF-8, so a short Bangla passphrase can already be over the limit — shorten ADMIN_PASSWORD and redeploy", len(password), bcryptMaxPasswordBytes)
 	}
 	var n int
 	if err := s.db.QueryRow(ctx, `select count(*) from users where role = 'admin'`).Scan(&n); err != nil {
