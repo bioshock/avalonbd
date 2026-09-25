@@ -227,72 +227,60 @@ func TestTransliterateNeverReturnsBengaliRunes(t *testing.T) {
 // else notices, because Transliterate already has a generic fallback for any
 // rune it does not recognise.
 func TestBanglaTableIsComplete(t *testing.T) {
-	assigned := func(lo, hi rune) []rune {
-		var out []rune
-		for cp := lo; cp <= hi; cp++ {
-			if unicode.Is(unicode.Bengali, cp) {
-				out = append(out, cp)
-			}
-		}
-		return out
+	// Walk the WHOLE Bengali block and classify by Unicode general category,
+	// rather than by hand-picked sub-ranges. An earlier version of this test
+	// listed six ranges taken from the task instructions, and five assigned
+	// letters and matras (U+0980, U+09BD, U+09E0-U+09E3, U+09FC, U+09FE) fell
+	// outside every one of them -- so the test could not tell "we decided to
+	// drop this" from "we never knew this existed", which is the entire
+	// guarantee it exists to provide. A category-driven loop cannot develop
+	// that kind of blind spot as Unicode assigns new code points.
+	//
+	// Only the categories that carry a sound are in scope: Lo (letters),
+	// Mn/Mc (combining vowel signs and other marks) and Nd (digits).
+	// Currency signs (Sc, including the taka sign), the Bengali currency
+	// numerators (No), symbols (So) and punctuation (Po) are correctly not
+	// transliterated -- Transliterate drops them through its generic
+	// Bengali-block branch, which TestTransliterateNeverReturnsBengaliRunes
+	// covers.
+	inScope := []*unicode.RangeTable{unicode.Lo, unicode.Mn, unicode.Mc, unicode.Nd}
+
+	// Signs handled by name in Transliterate's switch rather than by table.
+	handledAsSign := map[rune]bool{
+		chandrabindu: true, anusvara: true, visarga: true, nukta: true, hasanta: true,
 	}
 
-	t.Run("letters", func(t *testing.T) {
-		ranges := [][2]rune{
-			{0x0985, 0x09B9},
-			{0x09CE, 0x09CE},
-			{0x09DC, 0x09DF},
-			{0x09F0, 0x09F1},
+	for cp := rune(0x0980); cp <= 0x09FF; cp++ {
+		if !unicode.Is(unicode.Bengali, cp) {
+			continue // unassigned
 		}
-		for _, rg := range ranges {
-			for _, cp := range assigned(rg[0], rg[1]) {
-				_, consonant := banglaConsonants[cp]
-				_, vowel := banglaVowels[cp]
-				reason, dropped := banglaDeliberatelyDropped[cp]
-				switch {
-				case consonant, vowel:
-					// mapped
-				case dropped && reason == "":
-					t.Errorf("U+%04X is in banglaDeliberatelyDropped with no reason", cp)
-				case dropped:
-					// documented, deliberate
-				default:
-					t.Errorf("U+%04X is an assigned Bangla letter with no entry in "+
-						"banglaConsonants, banglaVowels, or banglaDeliberatelyDropped", cp)
-				}
+		relevant := false
+		for _, tab := range inScope {
+			if unicode.Is(tab, cp) {
+				relevant = true
+				break
 			}
 		}
-	})
-
-	t.Run("matras", func(t *testing.T) {
-		ranges := [][2]rune{
-			{0x09BE, 0x09CC},
-			{0x09D7, 0x09D7},
+		if !relevant || handledAsSign[cp] {
+			continue
 		}
-		for _, rg := range ranges {
-			for _, cp := range assigned(rg[0], rg[1]) {
-				_, matra := banglaMatras[cp]
-				reason, dropped := banglaDeliberatelyDropped[cp]
-				switch {
-				case matra:
-					// mapped
-				case dropped && reason == "":
-					t.Errorf("U+%04X is in banglaDeliberatelyDropped with no reason", cp)
-				case dropped:
-					// documented, deliberate
-				default:
-					t.Errorf("U+%04X is an assigned Bangla matra with no entry in "+
-						"banglaMatras or banglaDeliberatelyDropped", cp)
-				}
-			}
+		_, consonant := banglaConsonants[cp]
+		_, vowel := banglaVowels[cp]
+		_, matra := banglaMatras[cp]
+		_, digit := banglaDigits[cp]
+		_, nuktaForm := banglaNuktaConsonants[cp]
+		reason, dropped := banglaDeliberatelyDropped[cp]
+		switch {
+		case consonant, vowel, matra, digit, nuktaForm:
+			// mapped
+		case dropped && reason == "":
+			t.Errorf("U+%04X (%q) is in banglaDeliberatelyDropped with no reason", cp, cp)
+		case dropped:
+			// documented, deliberate
+		default:
+			t.Errorf("U+%04X (%q) is an assigned Bangla letter, mark or digit with no "+
+				"entry in any mapping table and none in banglaDeliberatelyDropped -- "+
+				"map it or record why it is dropped", cp, cp)
 		}
-	})
-
-	t.Run("digits", func(t *testing.T) {
-		for _, cp := range assigned(0x09E6, 0x09EF) {
-			if _, ok := banglaDigits[cp]; !ok {
-				t.Errorf("U+%04X is an assigned Bangla digit with no entry in banglaDigits", cp)
-			}
-		}
-	})
+	}
 }

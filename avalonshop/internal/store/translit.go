@@ -316,6 +316,14 @@ var banglaDigits = map[rune]rune{
 // "we forgot this exists", which is the class of bug (missing ড়/ঢ়/য়
 // handling) this map and its test were added to catch.
 var banglaDeliberatelyDropped = map[rune]string{
+	'ঀ': "ANJI: a manuscript/editorial mark opening a text, not a letter of the alphabet",
+	'ঽ': "AVAGRAHA: marks an elided initial a in Sanskrit transcription, unused in Bangla spelling",
+	'ৠ': "VOCALIC RR: the long counterpart of ঋ, Sanskrit-derived and unused in modern Bangla",
+	'ৡ': "VOCALIC LL: the long counterpart of ঌ, which is dropped for the same reason",
+	'ৢ': "VOWEL SIGN VOCALIC L: the matra form of ঌ, dropped to match the letter",
+	'ৣ': "VOWEL SIGN VOCALIC LL: the matra form of ৡ, dropped to match the letter",
+	'ৼ': "VEDIC ANUSVARA: Vedic notation, never used in Bangla orthography",
+	'৾': "SANDHI MARK: Vedic sandhi notation, never used in Bangla orthography",
 	'ঌ': "VOCALIC L: a Sanskrit-derived letter, not used in modern Bangla spelling",                                                                                                                                                                                                                       // BENGALI LETTER VOCALIC L (letter)
 	'ৰ': "RA WITH MIDDLE DIAGONAL: an Assamese letter, not standard Bangla",                                                                                                                                                                                                                               // BENGALI LETTER RA WITH MIDDLE DIAGONAL (letter)
 	'ৱ': "RA WITH LOWER DIAGONAL: an Assamese letter, not standard Bangla",                                                                                                                                                                                                                                // BENGALI LETTER RA WITH LOWER DIAGONAL (letter)
