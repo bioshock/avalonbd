@@ -26,9 +26,24 @@ func TestAdminOrdersFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A second order, moved out of `new`, is what makes the default view
+	// distinguishable from `all`. With only one (new) order in the table,
+	// `status = "new"` and `status = "all"` select exactly the same rows, so the
+	// assertion below passed even with the default mutated to "all" — the spec
+	// requires the list to default to `new`, and nothing was checking it.
+	other, err := st.PlaceOrder(ctx, store.NewOrder{Name: "Bipul", Phone: "01812345678", Email: "bipul@example.com", Address: "Road 2, Rajshahi", ZoneID: zone, Lines: []store.OrderLine{{VariantID: v1, Qty: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.UpdateOrderStatus(ctx, other.ID, "confirmed"); err != nil {
+		t.Fatal(err)
+	}
 	w := do(t, a, "GET", "/admin/orders", nil, "Cookie", adm)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), o.Number) {
 		t.Fatalf("list default (new): %d", w.Code)
+	}
+	if strings.Contains(w.Body.String(), other.Number) {
+		t.Fatalf("default view must list only `new`, but it included confirmed order %s", other.Number)
 	}
 	if w := do(t, a, "GET", "/admin/orders?status=shipped", nil, "Cookie", adm); strings.Contains(w.Body.String(), o.Number) {
 		t.Fatal("status filter not applied")
@@ -53,8 +68,8 @@ func TestAdminOrdersFlow(t *testing.T) {
 	if got.Status != "shipped" || got.AdminNote != "Left with neighbour" {
 		t.Fatalf("order state: %+v", got.Order)
 	}
-	if w := do(t, a, "GET", "/admin/orders?status=all", nil, "Cookie", adm); !strings.Contains(w.Body.String(), o.Number) {
-		t.Fatal("all filter")
+	if w := do(t, a, "GET", "/admin/orders?status=all", nil, "Cookie", adm); !strings.Contains(w.Body.String(), o.Number) || !strings.Contains(w.Body.String(), other.Number) {
+		t.Fatal("all filter must include every status, shipped and confirmed alike")
 	}
 	if w := do(t, a, "GET", "/admin/orders/999", nil, "Cookie", adm); w.Code != 404 {
 		t.Fatal("missing order should 404")
