@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -309,5 +310,170 @@ func TestAdminProductDeleteRefusedWhenOrdered(t *testing.T) {
 	w := do(t, a, "POST", "/admin/products/"+itoa(id)+"/delete", nil, "Cookie", adm)
 	if w.Code != 303 || !strings.Contains(cookieHeader(w, "flash"), "orders") {
 		t.Fatalf("should refuse: %d %q", w.Code, cookieHeader(w, "flash"))
+	}
+}
+
+// ---- Task 21: product slug history and 301 redirects ----
+
+// createSlugTestProduct creates a one-variant active product through the real
+// admin form (so the created row looks exactly like an admin-authored one)
+// and returns it loaded back from the store.
+func createSlugTestProduct(t *testing.T, a *App, adm, name, slug string) store.ProductFull {
+	t.Helper()
+	form := productForm(name, []string{"", "Default", "", "100", "5"})
+	form.Set("slug", slug)
+	w := do(t, a, "POST", "/admin/products/new", strings.NewReader(form.Encode()), "Cookie", adm)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("create %q: %d\n%s", slug, w.Code, w.Body.String())
+	}
+	p, err := a.st.GetProductBySlug(context.Background(), slug, false)
+	if err != nil {
+		t.Fatalf("fetch created product %q: %v", slug, err)
+	}
+	return p
+}
+
+// renameSlugTestProduct posts an update through the real admin handler,
+// changing only the slug, so the RecordOldSlug wiring in
+// adminProductUpdate runs exactly as it would for a real rename. Returns the
+// product reloaded after the rename.
+func renameSlugTestProduct(t *testing.T, a *App, adm string, p store.ProductFull, newSlug string) store.ProductFull {
+	t.Helper()
+	v := p.Variants[0]
+	form := productForm(p.Name, []string{itoa(v.ID), v.Name, "", itoa(int64(v.Price)), itoa(int64(v.Stock))})
+	form.Set("slug", newSlug)
+	w := do(t, a, "POST", "/admin/products/"+itoa(p.ID), strings.NewReader(form.Encode()), "Cookie", adm)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("rename %q -> %q: %d\n%s", p.Slug, newSlug, w.Code, w.Body.String())
+	}
+	got, err := a.st.GetProductBySlug(context.Background(), newSlug, false)
+	if err != nil {
+		t.Fatalf("fetch renamed product %q: %v", newSlug, err)
+	}
+	return got
+}
+
+// deactivateSlugTestProduct posts an update through the real admin handler
+// that unchecks "active" while leaving the slug untouched.
+func deactivateSlugTestProduct(t *testing.T, a *App, adm string, p store.ProductFull) {
+	t.Helper()
+	v := p.Variants[0]
+	form := productForm(p.Name, []string{itoa(v.ID), v.Name, "", itoa(int64(v.Price)), itoa(int64(v.Stock))})
+	form.Set("slug", p.Slug)
+	form.Del("active")
+	w := do(t, a, "POST", "/admin/products/"+itoa(p.ID), strings.NewReader(form.Encode()), "Cookie", adm)
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("deactivate %q: %d\n%s", p.Slug, w.Code, w.Body.String())
+	}
+}
+
+// TestAdminProductRenameRedirects301 is task-21-brief's core behaviour:
+// renaming a product through the admin form records the old slug, and
+// GET /products/{old-slug} then 301s to the product's current URL with the
+// query string preserved, instead of 404ing search ranking and shared links
+// into oblivion.
+func TestAdminProductRenameRedirects301(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	createSlugTestProduct(t, a, adm, "Wild Honey", "wild-honey")
+	p, err := st.GetProductBySlug(context.Background(), "wild-honey", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	renameSlugTestProduct(t, a, adm, p, "wild-forest-honey")
+
+	w := do(t, a, "GET", "/products/wild-honey", nil)
+	if w.Code != http.StatusMovedPermanently || w.Header().Get("Location") != "/products/wild-forest-honey" {
+		t.Fatalf("old slug: got %d %q, want 301 to /products/wild-forest-honey", w.Code, w.Header().Get("Location"))
+	}
+
+	w = do(t, a, "GET", "/products/wild-honey?ref=newsletter&utm_source=x", nil)
+	if w.Code != http.StatusMovedPermanently || w.Header().Get("Location") != "/products/wild-forest-honey?ref=newsletter&utm_source=x" {
+		t.Fatalf("query string must survive the redirect: got %d %q", w.Code, w.Header().Get("Location"))
+	}
+
+	if w := do(t, a, "GET", "/products/wild-forest-honey", nil); w.Code != http.StatusOK {
+		t.Fatalf("current slug should serve 200 directly, got %d", w.Code)
+	}
+}
+
+// TestAdminProductRenameChainRedirectsToLatest is the chain case: rename
+// A->B->C must send both the A and B URLs to C, never to each other, and
+// never through an intermediate 404.
+func TestAdminProductRenameChainRedirectsToLatest(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	createSlugTestProduct(t, a, adm, "Chain Product", "a")
+	p, err := st.GetProductBySlug(context.Background(), "a", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = renameSlugTestProduct(t, a, adm, p, "b")
+	renameSlugTestProduct(t, a, adm, p, "c")
+
+	for _, old := range []string{"a", "b"} {
+		w := do(t, a, "GET", "/products/"+old, nil)
+		if w.Code != http.StatusMovedPermanently || w.Header().Get("Location") != "/products/c" {
+			t.Fatalf("%q: got %d %q, want 301 to /products/c", old, w.Code, w.Header().Get("Location"))
+		}
+	}
+}
+
+// TestAdminProductUnknownSlugStill404s asserts a slug that was never live and
+// never retired still 404s (it must not be mistaken for a redirect target).
+func TestAdminProductUnknownSlugStill404s(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	createSlugTestProduct(t, a, adm, "Real Product", "real-product")
+
+	if w := do(t, a, "GET", "/products/never-existed", nil); w.Code != http.StatusNotFound {
+		t.Fatalf("unknown slug: got %d, want 404", w.Code)
+	}
+}
+
+// TestAdminProductRenameAwayAndBackServes200 is the loop-prevention case
+// (task-21-brief #trap 2): renaming a product back to a slug it used to have
+// must serve 200 directly from the live products row, never a 301 (which
+// would otherwise redirect the URL to itself).
+func TestAdminProductRenameAwayAndBackServes200(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	createSlugTestProduct(t, a, adm, "Loop Product", "loop-a")
+	p, err := st.GetProductBySlug(context.Background(), "loop-a", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = renameSlugTestProduct(t, a, adm, p, "loop-b")
+	renameSlugTestProduct(t, a, adm, p, "loop-a")
+
+	w := do(t, a, "GET", "/products/loop-a", nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("rename-away-and-back must serve 200 directly, not a redirect loop: got %d Location=%q", w.Code, w.Header().Get("Location"))
+	}
+}
+
+// TestAdminProductOldSlugOfDeactivatedProduct404s is task-21-decisions #1,
+// the trap most likely to pass silently: an old slug whose product has since
+// been deactivated must 404, not 301 to a page that will itself then 404.
+func TestAdminProductOldSlugOfDeactivatedProduct404s(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	createSlugTestProduct(t, a, adm, "Seasonal Item", "seasonal-old")
+	p, err := st.GetProductBySlug(context.Background(), "seasonal-old", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = renameSlugTestProduct(t, a, adm, p, "seasonal-new")
+	deactivateSlugTestProduct(t, a, adm, p)
+
+	w := do(t, a, "GET", "/products/seasonal-old", nil)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("old slug of a deactivated product: got %d Location=%q, want 404", w.Code, w.Header().Get("Location"))
+	}
+	// The current slug of the deactivated product must also still 404 —
+	// unchanged behaviour, asserted here so a broken guard can't be masked by
+	// this test only ever checking the OLD slug.
+	if w := do(t, a, "GET", "/products/seasonal-new", nil); w.Code != http.StatusNotFound {
+		t.Fatalf("current slug of a deactivated product: got %d, want 404", w.Code)
 	}
 }

@@ -85,9 +85,27 @@ func (a *App) products(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) product(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	p, err := a.st.GetProductBySlug(ctx, r.PathValue("slug"), true)
+	slug := r.PathValue("slug")
+	p, err := a.st.GetProductBySlug(ctx, slug, true)
 	if errors.Is(err, store.ErrNotFound) {
-		a.notFound(w, r)
+		// The live product always wins: only fall back to slug history once
+		// the current-slug lookup above has already missed (task-21-brief
+		// #3). ResolveSlugRedirect itself only resolves through active
+		// products, so an old slug of an inactive or deleted product falls
+		// through to the plain 404 below rather than a 301 to a dead page
+		// (task-21-decisions #1).
+		switch target, herr := a.st.ResolveSlugRedirect(ctx, slug); {
+		case herr == nil:
+			dest := "/products/" + target
+			if r.URL.RawQuery != "" {
+				dest += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, dest, http.StatusMovedPermanently)
+		case errors.Is(herr, store.ErrNotFound):
+			a.notFound(w, r)
+		default:
+			a.serverError(w, r, herr)
+		}
 		return
 	}
 	if err != nil {
