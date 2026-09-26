@@ -1,40 +1,62 @@
 {{define "content"}}{{$d := .Data}}{{$p := $d.Product}}
 <h1>{{if $d.IsNew}}New product{{else}}{{$p.Name}}{{end}}</h1>
 {{with $d.Errors.form}}<div class="errbox" role="alert">{{.}}</div>{{end}}
+{{if not $d.IsNew}}
+<section class="panel">
+  <h2>Photos</h2>
+  <p class="help">Photos save as soon as you choose them. The first photo is the one shown in the shop; use ↑ ↓ to change it.</p>
+  <form method="post" action="/admin/products/{{$p.ID}}/images" enctype="multipart/form-data" hx-post="/admin/products/{{$p.ID}}/images" hx-encoding="multipart/form-data" hx-trigger="change" hx-target="#images" hx-swap="innerHTML">
+    <input id="photo-input" class="visually-hidden" type="file" name="images" accept="image/jpeg,image/png,image/webp,image/gif" multiple required>
+    <label class="btn sm ghost upload" for="photo-input">Add photos</label>
+    <span class="help">JPEG, PNG, WebP or GIF, up to 10 MB each</span>
+    <noscript><button class="btn sm" type="submit">Upload</button></noscript>
+  </form>
+  <div id="images">{{template "image_list.html" (imageListData $p.ID $d.Images)}}</div>
+</section>
+{{end}}
 <form class="form wide" method="post" action="{{if $d.IsNew}}/admin/products/new{{else}}/admin/products/{{$p.ID}}{{end}}">
-  <div class="row">
-    <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{$p.Name}}" required>{{with $d.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
-    <div class="field"><label for="slug">URL slug</label><input id="slug" type="text" name="slug" value="{{$p.Slug}}" placeholder="auto from name"><p class="help">Lowercase letters, numbers, hyphens. Changing it breaks old links.</p></div>
-  </div>
-  <div class="field"><label for="tagline">Tagline (one line on cards and the home page)</label><input id="tagline" type="text" name="tagline" value="{{$p.Tagline}}" maxlength="160">{{with $d.Errors.tagline}}<p class="err">{{.}}</p>{{end}}</div>
-  <div class="row">
-    <div class="field"><label for="category_id">Category</label><select id="category_id" name="category_id"><option value="">— none —</option>{{range $d.Categories}}<option value="{{.ID}}"{{if and $p.CategoryID (eq .ID (derefInt64 $p.CategoryID))}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
-    <div class="field"><label class="check"><input type="checkbox" name="active"{{if $p.Active}} checked{{end}}> Active (visible in the shop)</label><label class="check"><input type="checkbox" name="featured"{{if $p.Featured}} checked{{end}}> Featured on the home page</label><label class="check"><input type="checkbox" name="promo"{{if $p.Promo}} checked{{end}}> Promo banner on the home page (only one product at a time)</label></div>
-  </div>
-  <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="8">{{$p.Description}}</textarea><p class="help">Plain text. Line breaks are kept.</p></div>
-  <div class="field"><label for="meta_description">Meta description (search snippet)</label><input id="meta_description" type="text" name="meta_description" value="{{$p.MetaDescription}}" maxlength="160"><p class="help">Up to 160 characters. Leave empty to use the start of the description.</p>{{with $d.Errors.meta_description}}<p class="err">{{.}}</p>{{end}}</div>
+<section class="panel">
+  <h2>Details</h2>
+  <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{$p.Name}}" required>{{with $d.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
+  <div class="field"><label for="tagline">Tagline</label><input id="tagline" type="text" name="tagline" value="{{$p.Tagline}}" maxlength="160"><p class="help">One short line shown under the name on product cards.</p>{{with $d.Errors.tagline}}<p class="err">{{.}}</p>{{end}}</div>
+  <div class="field"><label for="category_id">Category</label><select id="category_id" name="category_id"><option value="">— none —</option>{{range $d.Categories}}<option value="{{.ID}}"{{if and $p.CategoryID (eq .ID (derefInt64 $p.CategoryID))}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
+  <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="6">{{$p.Description}}</textarea><p class="help">Plain text. Line breaks are kept.</p></div>
+</section>
 
-  <h2>Variants</h2>
+<section class="panel">
+  <h2>Price &amp; stock</h2>
   {{with $d.Errors.variants}}<div class="errbox" role="alert">{{.}}</div>{{end}}
+  <p class="help">One row per size you sell (e.g. 100g, 250g). To show a discount, put the old price in “Was” — the shop shows it crossed out with “Save ৳X”.</p>
   <div class="table-wrap"><table class="variants" id="variants">
-    <thead><tr><th>Name</th><th>SKU</th><th>Price (৳)</th><th>Regular price (৳)</th><th>Stock</th><th>Sort</th><th></th></tr></thead>
+    <thead><tr><th>Size / name</th><th>SKU</th><th>Price (৳)</th><th>Was (৳)</th><th>Stock</th><th>Order</th><th></th></tr></thead>
     <tbody>{{range $d.Variants}}{{template "variant_row.html" .}}{{end}}</tbody>
   </table></div>
-  <p class="help">Regular price is optional. When it is higher than the price, the shop shows it crossed out with “Save ৳X”.</p>
-  <p><button class="btn sm ghost" type="button" hx-get="/admin/products/variant-row" hx-target="#variants tbody" hx-swap="beforeend">Add variant</button></p>
+  <p><button class="btn sm ghost" type="button" hx-get="/admin/products/variant-row" hx-target="#variants tbody" hx-swap="beforeend">+ Add size</button></p>
+</section>
+
+<section class="panel">
+  <h2>Where it shows</h2>
+  <label class="check"><input type="checkbox" name="active"{{if $p.Active}} checked{{end}}> Active — visible in the shop</label>
+  <label class="check"><input type="checkbox" name="featured"{{if $p.Featured}} checked{{end}}> Featured on the home page</label>
+  <label class="check"><input type="checkbox" name="promo"{{if $p.Promo}} checked{{end}}> Home page promo banner (only one product at a time)</label>
+</section>
+
+<details class="panel"{{if or $d.Errors.meta_description $d.Errors.slug}} open{{end}}>
+  <summary>Link &amp; search (optional)</summary>
+  <div class="field"><label for="slug">URL slug</label><input id="slug" type="text" name="slug" value="{{$p.Slug}}" placeholder="auto from name"><p class="help">Lowercase letters, numbers, hyphens. Changing it breaks old links.</p>{{with $d.Errors.slug}}<p class="err">{{.}}</p>{{end}}</div>
+  <div class="field"><label for="meta_description">Search snippet</label><input id="meta_description" type="text" name="meta_description" value="{{$p.MetaDescription}}" maxlength="160"><p class="help">Shown by Google under the title. Up to 160 characters. Leave empty to use the start of the description.</p>{{with $d.Errors.meta_description}}<p class="err">{{.}}</p>{{end}}</div>
+</details>
+
+<div class="savebar">
   <button class="btn" type="submit">{{if $d.IsNew}}Create product{{else}}Save changes{{end}}</button>
-  {{if not $d.IsNew}} <a class="btn ghost" href="/products/{{$p.Slug}}">View in shop</a>{{end}}
+  {{if not $d.IsNew}}<a class="btn ghost" href="/products/{{$p.Slug}}">View in shop</a>{{else}}<span class="help">You can add photos after creating the product.</span>{{end}}
+</div>
 </form>
 
 {{if not $d.IsNew}}
-<h2>Photos</h2>
-<form class="form" method="post" action="/admin/products/{{$p.ID}}/images" enctype="multipart/form-data" hx-post="/admin/products/{{$p.ID}}/images" hx-encoding="multipart/form-data" hx-target="#images" hx-swap="innerHTML">
-  <div class="field"><label for="images">Add photos (JPEG, PNG, WebP or GIF, up to 10 MB each)</label><input id="images" type="file" name="images" accept="image/jpeg,image/png,image/webp,image/gif" multiple required></div>
-  <button class="btn sm" type="submit">Upload</button>
-</form>
-<div id="images">{{template "image_list.html" (imageListData $p.ID $d.Images)}}</div>
-
-<h2>Danger zone</h2>
-<form method="post" action="/admin/products/{{$p.ID}}/delete" hx-post="/admin/products/{{$p.ID}}/delete" hx-confirm="Delete “{{$p.Name}}” and all its photos?"><button class="btn danger sm" type="submit">Delete product</button></form>
+<details class="panel danger-zone">
+  <summary>Delete product</summary>
+  <form method="post" action="/admin/products/{{$p.ID}}/delete" hx-post="/admin/products/{{$p.ID}}/delete" hx-confirm="Delete “{{$p.Name}}” and all its photos?"><button class="btn danger sm" type="submit">Delete product</button></form>
+</details>
 {{end}}
 {{end}}

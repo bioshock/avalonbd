@@ -289,3 +289,13 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 .contact-list{list-style:none;padding:0}
 .contact-list li{display:flex;gap:.75rem;align-items:center;margin:.85rem 0}
 .contact-list .i{color:var(--accent)}
+.panel{border:1px solid var(--line);border-radius:var(--radius);padding:1rem 1.25rem;margin-bottom:1.25rem;background:var(--ground)}
+.panel h2{margin-top:0;font-size:1.2rem}
+.panel .check{margin:.35rem 0}
+.panel>summary{cursor:pointer;font-weight:600}
+.panel[open]>summary{margin-bottom:1rem}
+.danger-zone>summary{color:var(--danger)}
+.savebar{position:sticky;bottom:0;z-index:5;display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;padding:.75rem 0;background:var(--ground);border-top:1px solid var(--line);margin-bottom:1.25rem}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.upload{cursor:pointer;margin-right:.5rem}
+.visually-hidden:focus-visible+.upload{outline:2px solid var(--accent);outline-offset:2px}
