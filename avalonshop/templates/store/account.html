@@ -1,23 +1,32 @@
 {{define "content"}}{{$d := .Data}}
-<p class="eyebrow">Account</p>
-<h1>Hi, {{$d.User.Name}}</h1>
-<div class="cart-page">
-  <div>
-    <h2>Your orders</h2>
-    {{if $d.Orders}}<div class="table-wrap"><table>
-      <thead><tr><th>Order</th><th>Date</th><th>Status</th><th class="num">Total</th></tr></thead>
-      <tbody>{{range $d.Orders}}<tr><td><a href="/orders/{{.Number}}">{{.Number}}</a></td><td>{{dhaka .CreatedAt}}</td><td><span class="status {{.Status}}">{{.Status}}</span></td><td class="num">{{taka .Total}}</td></tr>{{end}}</tbody>
-    </table></div>
-    {{else}}<p class="empty">No orders yet. <a href="/products">Start shopping</a></p>{{end}}
+<div class="acct-head">
+  <div><p class="eyebrow">Account</p><h1>Hi, {{$d.User.Name}}</h1><p class="muted">{{$d.User.Email}}</p></div>
+  <div class="acct-acts">
+    {{if eq $d.User.Role "admin"}}<a class="btn" href="/admin">Open admin</a>{{end}}
+    <form method="post" action="/logout"><button class="btn ghost" type="submit">Log out</button></form>
   </div>
-  <aside class="panel">
+</div>
+<section class="panel">
+  <h2>Your orders</h2>
+  {{if $d.Orders}}<div class="table-wrap"><table>
+    <thead><tr><th>Order</th><th>Date</th><th>Status</th><th class="num">Total</th></tr></thead>
+    <tbody>{{range $d.Orders}}<tr><td><a href="/orders/{{.Number}}">{{.Number}}</a></td><td>{{dhaka .CreatedAt}}</td><td><span class="status {{.Status}}">{{.Status}}</span></td><td class="num">{{taka .Total}}</td></tr>{{end}}</tbody>
+  </table></div>
+  {{else}}<p class="muted">You haven't ordered yet. Your orders and their delivery status will show here.</p>
+  <a class="btn" href="/products">Browse products</a>{{end}}
+</section>
+<div class="acct-grid">
+<section class="panel">
     <h2>Delivery details</h2>
+    <p class="help">Filled in for you at checkout.</p>
     <form method="post" action="/account">
       <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{index $d.Form "name"}}" required>{{with index $d.Errors "name"}}<p class="err">{{.}}</p>{{end}}</div>
       <div class="field"><label for="phone">Mobile</label><input id="phone" type="tel" name="phone" value="{{index $d.Form "phone"}}">{{with index $d.Errors "phone"}}<p class="err">{{.}}</p>{{end}}</div>
       <div class="field"><label for="address">Address</label><textarea id="address" name="address">{{index $d.Form "address"}}</textarea>{{with index $d.Errors "address"}}<p class="err">{{.}}</p>{{end}}</div>
       <button class="btn" type="submit">Save</button>
     </form>
+  </section>
+  <section class="panel">
     <h2>Password</h2>
     <form method="post" action="/account/password">
       <div class="field"><label for="current_password">Current password</label><input id="current_password" type="password" name="current_password" autocomplete="current-password" required>{{with index $d.Errors "current_password"}}<p class="err">{{.}}</p>{{end}}</div>
@@ -25,7 +34,6 @@
       <p class="help">Changing it signs you out on every other device.</p>
       <button class="btn" type="submit">Change password</button>
     </form>
-    <form method="post" action="/logout"><button class="btn ghost sm" type="submit">Log out</button></form>
-  </aside>
+  </section>
 </div>
 {{end}}

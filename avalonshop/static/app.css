@@ -299,3 +299,12 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .upload{cursor:pointer;margin-right:.5rem}
 .visually-hidden:focus-visible+.upload{outline:2px solid var(--accent);outline-offset:2px}
+.acct-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:1rem;margin-bottom:1.5rem}
+.acct-head h1{margin-bottom:.25rem}
+.acct-head .muted{margin:0}
+.acct-acts{display:flex;gap:.5rem;align-items:center}
+.acct-acts form{margin:0}
+.acct-grid{display:grid;gap:1.25rem;align-items:start}
+@media(min-width:800px){.acct-grid{grid-template-columns:1fr 1fr}}
+.acct-grid .panel{margin:0}
+.panel form>.btn{margin-top:.25rem}
