@@ -30,6 +30,22 @@ func (a *App) adminDashboard(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, "admin/dashboard.html", page{Title: "Dashboard", NoIndex: true, Data: d})
 }
 
+// adminSetNoIndex turns the site-wide "hide from search engines" switch on or off.
+func (a *App) adminSetNoIndex(w http.ResponseWriter, r *http.Request) {
+	on := r.FormValue("noindex") == "on"
+	v, msg := "off", "Search engines can now index the site."
+	if on {
+		v, msg = "on", "The site is now hidden from search engines."
+	}
+	if err := a.st.SetSetting(r.Context(), "noindex", v); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.hidden.Store(on)
+	a.setFlash(w, msg)
+	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+}
+
 func pathID(r *http.Request) int64 {
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	return id

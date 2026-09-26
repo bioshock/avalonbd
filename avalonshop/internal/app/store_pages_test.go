@@ -47,8 +47,8 @@ func TestHomeAndListing(t *testing.T) {
 	if !strings.Contains(body, `<link rel="canonical" href="http://localhost:8080/">`) || !strings.Contains(body, `<meta name="description"`) {
 		t.Fatal("home missing canonical or description")
 	}
-	if !strings.Contains(body, `<meta property="og:image" content="http://localhost:8080/media/`) {
-		t.Fatal("home missing og:image")
+	if !strings.Contains(body, `<meta property="og:image" content="http://localhost:8080/static/img/og.jpg">`) {
+		t.Fatal("home og:image should be the brand share card")
 	}
 	if !strings.Contains(body, `<link rel="preload" as="image" href="/static/img/hero-960.webp"`) || !strings.Contains(body, `fetchpriority="high"`) {
 		t.Fatal("hero image must be preloaded and high priority")

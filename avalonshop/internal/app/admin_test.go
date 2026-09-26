@@ -206,3 +206,27 @@ func TestAdminZones(t *testing.T) {
 		t.Fatal("zone not deleted")
 	}
 }
+
+func TestAdminNoIndexSwitch(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	hidden := func() bool {
+		w := do(t, a, "GET", "/about", nil)
+		return w.Header().Get("X-Robots-Tag") == "noindex, nofollow" && strings.Contains(w.Body.String(), `content="noindex"`)
+	}
+	if hidden() {
+		t.Fatal("site must be indexable by default")
+	}
+	if w := do(t, a, "POST", "/admin/settings/noindex", strings.NewReader("noindex=on"), "Cookie", adm); w.Code != 303 || !hidden() {
+		t.Fatalf("switch on: %d hidden=%v", w.Code, hidden())
+	}
+	if err := a.LoadSettings(context.Background()); err != nil || !a.hidden.Load() {
+		t.Fatalf("setting not persisted: %v", err)
+	}
+	if w := do(t, a, "POST", "/admin/settings/noindex", strings.NewReader(""), "Cookie", adm); w.Code != 303 || hidden() {
+		t.Fatalf("switch off: %d", w.Code)
+	}
+	if w := do(t, a, "POST", "/admin/settings/noindex", strings.NewReader("noindex=on")); w.Code != 404 {
+		t.Fatalf("logged-out toggle must 404, got %d", w.Code)
+	}
+}

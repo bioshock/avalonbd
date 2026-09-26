@@ -2,6 +2,7 @@
 package app
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"avalonshop/internal/config"
@@ -33,6 +35,10 @@ type App struct {
 	checkoutLimit *limiter
 	apiLimit      *limiter
 	mux           *http.ServeMux
+	// hidden mirrors the "noindex" setting so every response can check it for free.
+	// ponytail: in-memory copy, loaded at boot; with several app instances a toggle
+	// only reaches the others on restart — re-read per request if we ever scale out.
+	hidden atomic.Bool
 }
 
 func New(cfg config.Config, st *store.Store, m *mail.Mailer, templates, static fs.FS, log *slog.Logger) (*App, error) {
@@ -57,6 +63,13 @@ func New(cfg config.Config, st *store.Store, m *mail.Mailer, templates, static f
 	}
 	a.routes()
 	return a, nil
+}
+
+// LoadSettings reads the owner's site-wide switches from the database.
+func (a *App) LoadSettings(ctx context.Context) error {
+	v, err := a.st.Setting(ctx, "noindex")
+	a.hidden.Store(v == "on")
+	return err
 }
 
 // assetVersion is a short hash of the CSS and JS so their URLs change on deploy.
@@ -108,6 +121,7 @@ func (a *App) routes() {
 	m.HandleFunc("POST /admin/categories", adm(a.adminCategoryCreate))
 	m.HandleFunc("POST /admin/categories/{id}", adm(a.adminCategoryUpdate))
 	m.HandleFunc("POST /admin/categories/{id}/delete", adm(a.adminCategoryDelete))
+	m.HandleFunc("POST /admin/settings/noindex", adm(a.adminSetNoIndex))
 	m.HandleFunc("GET /admin/zones", adm(a.adminZones))
 	m.HandleFunc("POST /admin/zones", adm(a.adminZoneCreate))
 	m.HandleFunc("POST /admin/zones/{id}", adm(a.adminZoneUpdate))
@@ -141,6 +155,9 @@ func (a *App) Handler() http.Handler {
 	web := a.withUser(csrf.Handler(a.mux))
 	api := a.apiHandler()
 	return secureHeaders(gzipMiddleware(limitBody(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if a.hidden.Load() {
+			w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+		}
 		if strings.HasPrefix(r.URL.Path, "/api/admin/") {
 			api.ServeHTTP(w, r)
 			return

@@ -30,14 +30,9 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	og := a.cardOGImage(featured)
-	if og == "" {
-		og = a.cfg.BaseURL + "/static/img/hero-1600.webp"
-	}
 	a.render(w, r, "store/home.html", page{
 		Title:       "Avalon Foods · From Nature to Your Kitchen",
 		Description: siteDescription,
-		OGImage:     og,
 		JSONLD:      a.businessJSONLD(),
 		Wide:        true,
 		Data:        map[string]any{"Featured": featured, "Promo": promo, "PromoVariant": promoVariant},

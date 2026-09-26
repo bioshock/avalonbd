@@ -99,6 +99,9 @@ func run(log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
+	if err := a.LoadSettings(ctx); err != nil {
+		return err
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,

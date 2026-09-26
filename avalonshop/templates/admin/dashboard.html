@@ -1,5 +1,15 @@
 {{define "content"}}{{$d := .Data}}
 <h1>Dashboard</h1>
+<form class="panel seo-switch" method="post" action="/admin/settings/noindex">
+  {{if siteHidden}}
+  <p><strong>Hidden from Google.</strong> Every page tells search engines not to index it. Visitors with the link can still shop.</p>
+  <button class="btn" type="submit">Let Google index the site</button>
+  {{else}}
+  <p><strong>Visible to Google.</strong> Search engines can find and list the shop.</p>
+  <input type="hidden" name="noindex" value="on">
+  <button class="btn ghost" type="submit">Hide from Google</button>
+  {{end}}
+</form>
 <div class="stats">
   <div class="stat"><div class="n">{{$d.NewOrders}}</div><div class="muted">New orders</div><a href="/admin/orders?status=new">Review</a></div>
   <div class="stat"><div class="n">{{len $d.LowStock}}</div><div class="muted">Low-stock variants (≤ 5)</div></div>

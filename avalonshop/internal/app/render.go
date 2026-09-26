@@ -43,7 +43,8 @@ type page struct {
 
 func (a *App) funcs() template.FuncMap {
 	return template.FuncMap{
-		"taka": money.Format,
+		"siteHidden": a.hidden.Load,
+		"taka":       money.Format,
 		// imgURL names the file for the largest width that is both <= want
 		// and <= the image's actual stored width: img.WidthsFor only
 		// generates variants below (and equal to) the stored width, so
@@ -138,6 +139,10 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 	p.CartCount = cartCount(a.cartLines(r))
 	p.Flash = a.popFlash(w, r)
 	p.V = a.assetV
+	p.NoIndex = p.NoIndex || a.hidden.Load()
+	if p.OGImage == "" {
+		p.OGImage = a.cfg.BaseURL + "/static/img/og.jpg" // brand share card: logo + tagline
+	}
 	p.BaseURL = a.cfg.BaseURL
 	p.Path = r.URL.Path
 	p.Site = site
