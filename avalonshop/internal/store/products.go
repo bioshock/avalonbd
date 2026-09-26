@@ -15,20 +15,23 @@ type Product struct {
 	Description     string
 	CategoryID      *int64 `db:"category_id"`
 	MetaDescription string `db:"meta_description"`
+	Tagline         string
 	Active          bool
 	Featured        bool
+	Promo           bool
 	CreatedAt       time.Time `db:"created_at"`
 	UpdatedAt       time.Time `db:"updated_at"`
 }
 
 type Variant struct {
-	ID        int64
-	ProductID int64 `db:"product_id"`
-	Name      string
-	SKU       *string `db:"sku"`
-	Price     int
-	Stock     int
-	Sort      int
+	ID           int64
+	ProductID    int64 `db:"product_id"`
+	Name         string
+	SKU          *string `db:"sku"`
+	Price        int
+	RegularPrice *int `db:"regular_price"` // shown crossed out when greater than Price
+	Stock        int
+	Sort         int
 	// SkipStockUpdate leaves an existing variant's stock column untouched on
 	// UpdateProduct instead of overwriting it with Stock. Its zero value
 	// (false) always writes Stock, matching every caller's existing
@@ -50,9 +53,13 @@ type ProductCard struct {
 	ID           int64
 	Slug         string
 	Name         string
+	Tagline      string
 	MinPrice     int     `db:"min_price"`
 	VariantCount int     `db:"variant_count"`
 	InStock      bool    `db:"in_stock"`
+	VariantID    int64   `db:"variant_id"`    // cheapest variant: quick add-to-cart on single-variant products
+	VariantName  string  `db:"variant_name"`  // cheapest variant's name, e.g. "100g"
+	RegularPrice *int    `db:"regular_price"` // cheapest variant's regular price
 	ImageFile    *string `db:"image_file"`
 	ImageAlt     *string `db:"image_alt"`
 	ImageWidth   *int    `db:"image_width"`
@@ -84,22 +91,25 @@ type SitemapEntry struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-const productCols = `id, slug, name, description, category_id, meta_description, active, featured, created_at, updated_at`
-const variantCols = `id, product_id, name, sku, price, stock, sort`
+const productCols = `id, slug, name, description, category_id, meta_description, tagline, active, featured, promo, created_at, updated_at`
+const variantCols = `id, product_id, name, sku, price, regular_price, stock, sort`
 
 func (s *Store) ListProductCards(ctx context.Context, o ListOpts) ([]ProductCard, error) {
 	if o.Limit == 0 {
 		o.Limit = 200
 	}
 	rows, err := s.db.Query(ctx, `
-		select p.id, p.slug, p.name,
+		select p.id, p.slug, p.name, p.tagline,
 		       coalesce(v.min_price, 0) as min_price,
 		       coalesce(v.n, 0)::int as variant_count,
 		       coalesce(v.in_stock, false) as in_stock,
+		       coalesce(m.id, 0) as variant_id, coalesce(m.name, '') as variant_name, m.regular_price,
 		       i.file as image_file, i.alt as image_alt, i.width as image_width, i.height as image_height
 		from products p
 		left join lateral (select min(price) min_price, count(*) n, bool_or(stock > 0) in_stock
 		                   from variants where product_id = p.id) v on true
+		left join lateral (select id, name, regular_price from variants
+		                   where product_id = p.id order by price, sort, id limit 1) m on true
 		left join lateral (select file, alt, width, height from product_images
 		                   where product_id = p.id order by sort, id limit 1) i on true
 		where p.active
@@ -152,6 +162,12 @@ func (s *Store) GetProduct(ctx context.Context, id int64) (ProductFull, error) {
 	return s.getProductWhere(ctx, "id = $1", id, false)
 }
 
+// GetPromo returns the active promo product (the home page banner), or
+// ErrNotFound when there is none.
+func (s *Store) GetPromo(ctx context.Context) (ProductFull, error) {
+	return s.getProductWhere(ctx, "promo = $1", true, true)
+}
+
 func (s *Store) ListProductsAdmin(ctx context.Context) ([]AdminProductRow, error) {
 	rows, err := s.db.Query(ctx, `
 		select p.id, p.slug, p.name, coalesce(c.name, '') as category,
@@ -172,10 +188,15 @@ func (s *Store) CreateProduct(ctx context.Context, p Product, vs []Variant) (int
 		return 0, err
 	}
 	defer tx.Rollback(ctx)
+	if p.Promo {
+		if err := clearPromo(ctx, tx, 0); err != nil {
+			return 0, err
+		}
+	}
 	var id int64
-	err = tx.QueryRow(ctx, `insert into products (slug, name, description, category_id, meta_description, active, featured)
-		values ($1, $2, $3, $4, $5, $6, $7) returning id`,
-		p.Slug, p.Name, p.Description, p.CategoryID, p.MetaDescription, p.Active, p.Featured).Scan(&id)
+	err = tx.QueryRow(ctx, `insert into products (slug, name, description, category_id, meta_description, tagline, active, featured, promo)
+		values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning id`,
+		p.Slug, p.Name, p.Description, p.CategoryID, p.MetaDescription, p.Tagline, p.Active, p.Featured, p.Promo).Scan(&id)
 	if err != nil {
 		return 0, mapErr(err)
 	}
@@ -194,6 +215,15 @@ func (s *Store) UpdateProduct(ctx context.Context, p Product, vs []Variant) erro
 	}
 	defer tx.Rollback(ctx)
 
+	// Take the promo lock before locking our own row. The other order
+	// deadlocks: tx A holds row A and waits for the lock, tx B holds the
+	// lock and waits for row A while clearing it.
+	if p.Promo {
+		if err := clearPromo(ctx, tx, p.ID); err != nil {
+			return err
+		}
+	}
+
 	// Lock the row and read the slug it currently has, so the retired slug is
 	// captured from the row we are about to overwrite rather than from a read
 	// the caller did earlier. Two concurrent renames then serialize here: the
@@ -205,8 +235,8 @@ func (s *Store) UpdateProduct(ctx context.Context, p Product, vs []Variant) erro
 		return mapErr(err)
 	}
 	tag, err := tx.Exec(ctx, `update products set slug = $2, name = $3, description = $4, category_id = $5,
-		meta_description = $6, active = $7, featured = $8, updated_at = clock_timestamp() where id = $1`,
-		p.ID, p.Slug, p.Name, p.Description, p.CategoryID, p.MetaDescription, p.Active, p.Featured)
+		meta_description = $6, tagline = $7, active = $8, featured = $9, promo = $10, updated_at = clock_timestamp() where id = $1`,
+		p.ID, p.Slug, p.Name, p.Description, p.CategoryID, p.MetaDescription, p.Tagline, p.Active, p.Featured, p.Promo)
 	if err != nil {
 		return mapErr(err)
 	}
@@ -243,21 +273,21 @@ func syncVariants(ctx context.Context, tx pgx.Tx, productID int64, vs []Variant)
 				// form was opened but before it was saved must not have its
 				// decrement overwritten back to the stale rendered value
 				// (C2).
-				if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, sort = $6 where id = $1 and product_id = $2`,
-					v.ID, productID, v.Name, sku, v.Price, v.Sort); err != nil {
+				if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, regular_price = $6, sort = $7 where id = $1 and product_id = $2`,
+					v.ID, productID, v.Name, sku, v.Price, v.RegularPrice, v.Sort); err != nil {
 					return mapErr(err)
 				}
 			} else {
-				if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, stock = $6, sort = $7 where id = $1 and product_id = $2`,
-					v.ID, productID, v.Name, sku, v.Price, v.Stock, v.Sort); err != nil {
+				if _, err := tx.Exec(ctx, `update variants set name = $3, sku = $4, price = $5, regular_price = $6, stock = $7, sort = $8 where id = $1 and product_id = $2`,
+					v.ID, productID, v.Name, sku, v.Price, v.RegularPrice, v.Stock, v.Sort); err != nil {
 					return mapErr(err)
 				}
 			}
 			keep = append(keep, v.ID)
 		} else {
 			var id int64
-			if err := tx.QueryRow(ctx, `insert into variants (product_id, name, sku, price, stock, sort) values ($1, $2, $3, $4, $5, $6) returning id`,
-				productID, v.Name, sku, v.Price, v.Stock, v.Sort).Scan(&id); err != nil {
+			if err := tx.QueryRow(ctx, `insert into variants (product_id, name, sku, price, regular_price, stock, sort) values ($1, $2, $3, $4, $5, $6, $7) returning id`,
+				productID, v.Name, sku, v.Price, v.RegularPrice, v.Stock, v.Sort).Scan(&id); err != nil {
 				return mapErr(err)
 			}
 			keep = append(keep, id)
@@ -265,6 +295,18 @@ func syncVariants(ctx context.Context, tx pgx.Tx, productID int64, vs []Variant)
 	}
 	_, err := tx.Exec(ctx, `delete from variants where product_id = $1 and id <> all($2)`, productID, keep)
 	return mapErr(err)
+}
+
+// clearPromo unsets promo on every product except keepID so the
+// products_one_promo index never fires. The advisory lock serializes two
+// concurrent promo saves; without it both could clear, both set, and the
+// second commit would fail on the unique index.
+func clearPromo(ctx context.Context, tx pgx.Tx, keepID int64) error {
+	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('products_promo'))`); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `update products set promo = false where promo and id <> $1`, keepID)
+	return err
 }
 
 // DeleteProduct removes the product and returns its image rows so the caller

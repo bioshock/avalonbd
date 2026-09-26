@@ -338,3 +338,124 @@ func equalStrings(a, b []string) bool {
 	}
 	return true
 }
+
+func TestRegularPriceTaglineAndPromo(t *testing.T) {
+	st := store.New(storetest.Pool(t))
+	ctx := context.Background()
+	if _, err := st.GetPromo(ctx); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("no promo yet: want ErrNotFound, got %v", err)
+	}
+	reg := 550
+	trio, err := st.CreateProduct(ctx, store.Product{Slug: "trio", Name: "Trio", Tagline: "Three in one", Active: true, Promo: true},
+		[]store.Variant{{Name: "3 × 100g", Price: 499, RegularPrice: &reg, Stock: 5}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := st.GetProduct(ctx, trio)
+	if err != nil || p.Tagline != "Three in one" || !p.Promo || p.Variants[0].RegularPrice == nil || *p.Variants[0].RegularPrice != 550 {
+		t.Fatalf("round trip lost fields: %+v %v", p, err)
+	}
+	got, err := st.GetPromo(ctx)
+	if err != nil || got.ID != trio || len(got.Variants) != 1 {
+		t.Fatalf("GetPromo = %+v %v", got, err)
+	}
+
+	// Clearing the regular price through UpdateProduct stores NULL.
+	p.Variants[0].RegularPrice = nil
+	if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ = st.GetProduct(ctx, trio); p.Variants[0].RegularPrice != nil {
+		t.Fatal("regular price should be cleared")
+	}
+
+	// A second promo product takes the slot; the first loses it.
+	other, err := st.CreateProduct(ctx, store.Product{Slug: "other", Name: "Other", Active: true, Promo: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := st.GetPromo(ctx); got.ID != other {
+		t.Fatalf("promo should move to other, got %d", got.ID)
+	}
+	if p, _ = st.GetProduct(ctx, trio); p.Promo {
+		t.Fatal("trio should have lost promo")
+	}
+	// ...and back again through UpdateProduct.
+	p.Promo = true
+	if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := st.GetPromo(ctx); got.ID != trio {
+		t.Fatalf("promo should be trio again, got %d", got.ID)
+	}
+
+	// Review Focus 5: an inactive promo product is not returned.
+	p.Active = false
+	if err := st.UpdateProduct(ctx, p.Product, p.Variants); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.GetPromo(ctx); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("inactive promo must be hidden, got %v", err)
+	}
+}
+
+func TestProductCardCheapestVariantFields(t *testing.T) {
+	st := store.New(storetest.Pool(t))
+	ctx := context.Background()
+	reg := 150
+	id, err := st.CreateProduct(ctx, store.Product{Slug: "onion", Name: "Onion", Tagline: "Fine-ground", Active: true},
+		[]store.Variant{{Name: "200g", Price: 240, Stock: 1, Sort: 0}, {Name: "100g", Price: 130, RegularPrice: &reg, Stock: 1, Sort: 1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, _ := st.GetProduct(ctx, id)
+	cards, err := st.ListProductCards(ctx, store.ListOpts{})
+	if err != nil || len(cards) != 1 {
+		t.Fatalf("cards %+v %v", cards, err)
+	}
+	c := cards[0]
+	if c.Tagline != "Fine-ground" || c.VariantName != "100g" || c.VariantID != p.Variants[1].ID || c.RegularPrice == nil || *c.RegularPrice != 150 || c.MinPrice != 130 {
+		t.Fatalf("card wrong: %+v", c)
+	}
+}
+
+// TestPromoConcurrentSaves is Review Focus 1: two saves that both set promo
+// on different products at the same moment must both succeed and leave
+// exactly one promo product.
+func TestPromoConcurrentSaves(t *testing.T) {
+	st := store.New(storetest.Pool(t))
+	ctx := context.Background()
+	var ps []store.ProductFull
+	for _, slug := range []string{"a", "b"} {
+		id, err := st.CreateProduct(ctx, store.Product{Slug: slug, Name: slug, Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _ := st.GetProduct(ctx, id)
+		p.Promo = true
+		ps = append(ps, p)
+	}
+	for round := 0; round < 10; round++ {
+		var wg sync.WaitGroup
+		errs := make([]error, len(ps))
+		for i, p := range ps {
+			wg.Add(1)
+			go func() { defer wg.Done(); errs[i] = st.UpdateProduct(ctx, p.Product, p.Variants) }()
+		}
+		wg.Wait()
+		for _, err := range errs {
+			if err != nil {
+				t.Fatalf("round %d: concurrent promo save failed: %v", round, err)
+			}
+		}
+		n := 0
+		for _, p := range ps {
+			if got, _ := st.GetProduct(ctx, p.ID); got.Promo {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Fatalf("round %d: %d promo products, want 1", round, n)
+		}
+	}
+}

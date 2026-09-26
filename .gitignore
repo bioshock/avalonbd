@@ -3,3 +3,4 @@ avalonshop/data/
 avalonshop/.env
 credentials.txt
 web-access.txt
+.playwright-mcp/
