@@ -220,3 +220,32 @@ func TestHomeSpicesPromoAndWhatsApp(t *testing.T) {
 		t.Error("inactive promo must not render")
 	}
 }
+
+func TestStruckPriceAndProductWhatsApp(t *testing.T) {
+	a, st := newDBApp(t)
+	ctx := context.Background()
+	reg := 550
+	id, _ := st.CreateProduct(ctx, store.Product{Slug: "trio", Name: "Spice Trio & Co", Active: true},
+		[]store.Variant{{Name: "Set", Price: 499, RegularPrice: &reg, Stock: 3, Sort: 0}, {Name: "Big set", Price: 900, Stock: 3, Sort: 1}}) // Set is cheapest, so the listing card shows its struck price
+	p, _ := st.GetProduct(ctx, id)
+
+	body := do(t, a, "GET", "/products/trio", nil).Body.String()
+	for _, want := range []string{
+		`<s class="was" id="was">৳ 550</s>`,
+		`<span class="save" id="save">Save ৳ 51</span>`,
+		`data-was-text="৳ 550" data-save-text="Save ৳ 51"`, // first variant
+		`value="` + itoa(p.Variants[1].ID) + `" data-price-text="৳ 900" data-was-text="" data-save-text=""`,
+		`class="btn outline wa"`,
+		`href="https://wa.me/8801933309009?text=Hi%20Avalon%20Foods%2C%20I%27d%20like%20to%20order%3A%20Spice%20Trio%20%26%20Co"`,
+		`<meta property="og:type" content="product">`,
+		`"brand":{"@type":"Brand","name":"Avalon Foods"}`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("product page missing %q", want)
+		}
+	}
+	list := do(t, a, "GET", "/products", nil).Body.String()
+	if !strings.Contains(list, `<s class="was">৳ 550</s>`) {
+		t.Error("listing card missing struck regular price")
+	}
+}

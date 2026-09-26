@@ -13,14 +13,15 @@
     <h1>{{$p.Name}}</h1>
     {{if $p.Variants}}
     <form method="post" action="/cart/items" hx-post="/cart/items" hx-target="#drawer" hx-swap="innerHTML">
-      <span class="price"><span id="price">{{taka $sel.Price}}</span><small id="stock">{{if gt $sel.Stock 0}}In stock{{else}}Sold out{{end}}</small></span>
+      <span class="price"><span id="price">{{taka $sel.Price}}</span><s class="was" id="was">{{with was $sel.Price $sel.RegularPrice}}{{taka .}}{{end}}</s><span class="save" id="save">{{with was $sel.Price $sel.RegularPrice}}Save {{taka (sub . $sel.Price)}}{{end}}</span><small id="stock">{{if gt $sel.Stock 0}}In stock{{else}}Sold out{{end}}</small></span>
       {{if gt (len $p.Variants) 1}}<p class="eyebrow muted">Option</p>{{end}}
-      <div class="pills">{{range $p.Variants}}<label class="pill"><input type="radio" name="variant_id" value="{{.ID}}" data-price-text="{{taka .Price}}" data-stock="{{.Stock}}" data-stock-text="{{if gt .Stock 0}}In stock{{else}}Sold out{{end}}"{{if eq .ID $sel.ID}} checked{{end}}{{if eq .Stock 0}} disabled{{end}}><span>{{.Name}}</span></label>{{end}}</div>
+      <div class="pills">{{range $v := $p.Variants}}<label class="pill"><input type="radio" name="variant_id" value="{{$v.ID}}" data-price-text="{{taka $v.Price}}" data-was-text="{{with was $v.Price $v.RegularPrice}}{{taka .}}{{end}}" data-save-text="{{with was $v.Price $v.RegularPrice}}Save {{taka (sub . $v.Price)}}{{end}}" data-stock="{{$v.Stock}}" data-stock-text="{{if gt $v.Stock 0}}In stock{{else}}Sold out{{end}}"{{if eq $v.ID $sel.ID}} checked{{end}}{{if eq $v.Stock 0}} disabled{{end}}><span>{{$v.Name}}</span></label>{{end}}</div>
       <div class="buy-row">
         <span class="qty"><button type="button" data-step="-1" aria-label="Decrease quantity">−</button><input type="number" name="qty" value="1" min="1" max="{{if gt $sel.Stock 0}}{{$sel.Stock}}{{else}}1{{end}}" aria-label="Quantity"><button type="button" data-step="1" aria-label="Increase quantity">+</button></span>
         <button class="btn" type="submit"{{if eq $sel.Stock 0}} disabled{{end}}>Add to cart</button>
       </div>
     </form>
+    <a class="btn outline wa" href="{{wa (print "Hi Avalon Foods, I'd like to order: " $p.Name)}}" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> Order on WhatsApp</a>
     {{else}}<p class="muted">Not available right now.</p>{{end}}
     {{if $p.Description}}<p class="desc">{{$p.Description}}</p>{{end}}
     <div class="meta"><span>Cash on delivery</span><span>Delivery across Bangladesh</span>{{if $sel.SKU}}<span>SKU {{deref $sel.SKU}}</span>{{end}}<span>Ships in 1–2 days</span></div>

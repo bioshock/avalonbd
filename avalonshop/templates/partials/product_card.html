@@ -3,7 +3,7 @@
   <div class="body">
     <p class="name">{{.C.Name}}</p>
     <div class="line">
-      <span class="price">{{if gt .C.VariantCount 1}}from {{end}}{{taka .C.MinPrice}}</span>
+      {{template "price_line" .C}}
       <span class="hint">{{if not .C.InStock}}Sold out{{else if gt .C.VariantCount 1}}{{.C.VariantCount}} options{{end}}</span>
     </div>
   </div>

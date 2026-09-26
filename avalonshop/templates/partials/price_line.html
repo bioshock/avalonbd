@@ -1,1 +1,1 @@
-{{define "price_line"}}<p class="price{{if was .MinPrice .RegularPrice}} deal{{end}}">{{if gt .VariantCount 1}}from {{end}}{{taka .MinPrice}}{{with was .MinPrice .RegularPrice}}<s class="was">{{taka .}}</s><span class="save">Save {{taka (sub . $.MinPrice)}}</span>{{end}}</p>{{end}}
+{{define "price_line"}}<span class="price{{if was .MinPrice .RegularPrice}} deal{{end}}">{{if gt .VariantCount 1}}from {{end}}{{taka .MinPrice}}{{with was .MinPrice .RegularPrice}}<s class="was">{{taka .}}</s><span class="save">Save {{taka (sub . $.MinPrice)}}</span>{{end}}</span>{{end}}

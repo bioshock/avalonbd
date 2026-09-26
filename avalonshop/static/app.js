@@ -63,6 +63,9 @@
     var qty = document.querySelector('input[name=qty]');
     if (price) price.textContent = pill.dataset.priceText;
     if (stock) stock.textContent = pill.dataset.stockText;
+    var was = document.getElementById('was'), save = document.getElementById('save');
+    if (was) was.textContent = pill.dataset.wasText || '';
+    if (save) save.textContent = pill.dataset.saveText || '';
     if (qty) { qty.max = pill.dataset.stock; if (+qty.value > +pill.dataset.stock) qty.value = pill.dataset.stock; }
   });
 
