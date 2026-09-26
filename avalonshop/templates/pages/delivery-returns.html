@@ -1,0 +1,17 @@
+{{define "content"}}
+<article class="prose">
+<p class="eyebrow">Help</p>
+<h1>Delivery &amp; Returns</h1>
+<h2>Delivery</h2>
+<p>We deliver across Bangladesh and you pay cash on delivery. After you order, we call to confirm, then hand your parcel to one of our courier partners.</p>
+<ul><li>Rajshahi: usually 1–2 days</li><li>Rest of Bangladesh: usually 2–4 days</li></ul>
+<h2>Delivery charges</h2>
+{{if .Data}}<div class="table-wrap"><table><thead><tr><th>Area</th><th class="num">Charge</th></tr></thead><tbody>{{range .Data}}<tr><td>{{.Name}}</td><td class="num">{{taka .Fee}}</td></tr>{{end}}</tbody></table></div>
+{{else}}<p>We will tell you the delivery charge when we call to confirm your order.</p>{{end}}
+<p>The charge for your area is also shown at checkout, before you place the order.</p>
+<h2>Returns</h2>
+<p>If your order arrives damaged, or you received the wrong item, tell us within 48 hours of delivery and send a photo by WhatsApp or email. We will replace the item or refund you.</p>
+<p>Because these are food products, opened items cannot be returned for any other reason.</p>
+<p><a href="{{wa "Hi Avalon Foods, I have a problem with my order."}}" rel="noopener">WhatsApp {{.Site.Phone}}</a> · <a href="mailto:{{.Site.Email}}">{{.Site.Email}}</a></p>
+</article>
+{{end}}

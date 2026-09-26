@@ -92,7 +92,7 @@ func (a *App) funcs() template.FuncMap {
 
 func parseTemplates(fsys fs.FS, funcs template.FuncMap) (map[string]*template.Template, error) {
 	out := map[string]*template.Template{}
-	for _, set := range []struct{ dir, layout string }{{"store", "templates/layout.html"}, {"admin", "templates/admin/layout.html"}} {
+	for _, set := range []struct{ dir, layout string }{{"store", "templates/layout.html"}, {"pages", "templates/layout.html"}, {"admin", "templates/admin/layout.html"}} {
 		pages, err := fs.Glob(fsys, "templates/"+set.dir+"/*.html")
 		if err != nil {
 			return nil, err

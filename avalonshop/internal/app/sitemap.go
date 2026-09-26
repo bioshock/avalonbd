@@ -33,6 +33,9 @@ func (a *App) sitemap(w http.ResponseWriter, r *http.Request) {
 	base := a.cfg.BaseURL
 	add(base+"/", time.Time{})
 	add(base+"/products", time.Time{})
+	for _, cp := range contentPages {
+		add(base+"/"+cp.Slug, time.Time{})
+	}
 	for _, c := range cats {
 		add(base+"/products?category="+c.Slug, time.Time{})
 	}

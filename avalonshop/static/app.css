@@ -273,3 +273,17 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 .imgs form input[type=text]{margin:.4rem 0 .3rem}
 
 @media(prefers-reduced-motion:reduce){.drawer,.scrim,.card{transition:none}.card:hover{transform:none}}
+
+/* content pages */
+.prose{max-width:46rem}
+.prose h2{font-size:1.4rem;margin-top:2rem}
+.prose ul,.prose ol{padding-left:1.25rem}
+.prose li{margin:.35rem 0}
+.prose a:not(.btn){color:var(--accent)}
+.journey{list-style:none;padding:0;counter-reset:s}
+.journey li{position:relative;padding-left:3rem;margin:1.5rem 0;counter-increment:s}
+.journey li::before{content:counter(s);position:absolute;left:0;top:0;width:2.1rem;height:2.1rem;display:grid;place-items:center;border-radius:50%;background:var(--accent);color:#fff;font:600 1rem var(--serif)}
+.journey h2{margin:0 0 .35rem;font-size:1.2rem}
+.contact-list{list-style:none;padding:0}
+.contact-list li{display:flex;gap:.75rem;align-items:center;margin:.85rem 0}
+.contact-list .i{color:var(--accent)}

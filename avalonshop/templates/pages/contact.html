@@ -1,0 +1,15 @@
+{{define "content"}}
+<article class="prose">
+<p class="eyebrow">Contact</p>
+<h1>Contact us</h1>
+<p>Questions about an order or our products? Call, WhatsApp or email us.</p>
+<ul class="contact-list">
+<li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><span>{{.Site.Address}}</span></li>
+<li><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg><a href="{{.Site.Tel}}">{{.Site.Phone}}</a></li>
+<li><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg><a href="{{wa "Hi Avalon Foods!"}}" rel="noopener">WhatsApp {{.Site.Phone}}</a></li>
+<li><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg><a href="mailto:{{.Site.Email}}">{{.Site.Email}}</a></li>
+<li><svg class="i" aria-hidden="true"><use href="#i-clock"/></svg><span>{{.Site.Hours}}</span></li>
+<li><svg class="i" aria-hidden="true"><use href="#i-facebook"/></svg><a href="{{.Site.Facebook}}" rel="noopener">Avalon Foods on Facebook</a></li>
+</ul>
+</article>
+{{end}}

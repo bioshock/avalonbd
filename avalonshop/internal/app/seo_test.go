@@ -47,7 +47,8 @@ func TestPerformanceBudget(t *testing.T) {
 	st.CreateZone(context.Background(), store.Zone{Name: "Rajshahi", Fee: 60, Active: true})
 	cart := cookieHeader(do(t, a, "POST", "/cart/items", strings.NewReader("variant_id="+itoa(v1)+"&qty=1")), "cart")
 
-	pages := []string{"/", "/products", "/products?category=honey", "/products/" + slug, "/cart", "/checkout", "/login", "/register"}
+	pages := []string{"/", "/products", "/products?category=honey", "/products/" + slug, "/cart", "/checkout", "/login", "/register",
+		"/about", "/journey", "/contact", "/delivery-returns", "/privacy", "/terms"}
 	for _, p := range pages {
 		w := do(t, a, "GET", p, nil, "Cookie", "cart="+cart)
 		if w.Code != 200 {

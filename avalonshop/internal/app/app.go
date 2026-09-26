@@ -127,6 +127,9 @@ func (a *App) routes() {
 	m.HandleFunc("GET /admin/orders/{id}", adm(a.adminOrder))
 	m.HandleFunc("POST /admin/orders/{id}/status", adm(a.adminOrderStatus))
 	m.HandleFunc("POST /admin/orders/{id}/note", adm(a.adminOrderNote))
+	for _, cp := range contentPages {
+		m.HandleFunc("GET /"+cp.Slug, a.contentPage(cp.Slug, cp.Title, cp.Description))
+	}
 	m.HandleFunc("/", a.notFound)
 	// Later tasks append their routes below this line.
 }
