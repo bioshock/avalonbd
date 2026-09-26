@@ -17,7 +17,7 @@ import (
 
 // siteDescription is the default meta/OG description for pages that don't set
 // their own. Declared once, here; other tasks reuse it rather than redeclaring it.
-const siteDescription = "Natural products from Rajshahi, Bangladesh. Small batches, honest sourcing, cash on delivery nationwide."
+const siteDescription = "Premium food products from Bangladesh. From local ingredients to better food."
 
 // page is what every layout receives. Handlers fill the SEO fields and Data;
 // render fills the rest.
@@ -26,6 +26,8 @@ type page struct {
 	Description string
 	Canonical   string
 	OGImage     string
+	OGType      string // empty means "website"
+	Wide        bool   // true skips .wrap on <main>
 	JSONLD      template.JS
 	NoIndex     bool
 	User        *store.User
@@ -34,6 +36,7 @@ type page struct {
 	V           string
 	BaseURL     string
 	Path        string
+	Site        Site
 	Data        any
 }
 
@@ -70,6 +73,10 @@ func (a *App) funcs() template.FuncMap {
 		"add":       func(x, y int) int { return x + y },
 		"mul":       func(x, y int) int { return x * y },
 		"hasPrefix": strings.HasPrefix,
+		"wa":        waLink,
+		"was":       was,
+		"sub":       func(x, y int) int { return x - y },
+		"lines":     lines,
 		"cardData":  func(c store.ProductCard, i int) map[string]any { return map[string]any{"C": c, "Eager": i < 4} },
 		"imageListData": func(productID int64, imgs []store.Image) map[string]any {
 			return map[string]any{"ProductID": productID, "Images": imgs, "Errors": []string(nil)}
@@ -127,6 +134,7 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 	p.V = a.assetV
 	p.BaseURL = a.cfg.BaseURL
 	p.Path = r.URL.Path
+	p.Site = site
 	if p.Canonical == "" {
 		p.Canonical = a.cfg.BaseURL + r.URL.Path
 	}
@@ -135,9 +143,9 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 	}
 	switch {
 	case p.Title == "":
-		p.Title = "Avalon"
+		p.Title = "Avalon Foods"
 	case !strings.Contains(p.Title, "Avalon"):
-		p.Title += " · Avalon"
+		p.Title += " · Avalon Foods"
 	}
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout.html", p); err != nil {

@@ -67,7 +67,7 @@ func (a *App) products(w http.ResponseWriter, r *http.Request) {
 	}
 	p := page{
 		Title:       "All products",
-		Description: "Browse every product from Avalon. " + siteDescription,
+		Description: "Browse every product from Avalon Foods. " + siteDescription,
 		OGImage:     a.cardOGImage(cards),
 		Data:        map[string]any{"Cards": cards, "Categories": cats, "Current": current, "Query": q},
 	}
@@ -77,7 +77,7 @@ func (a *App) products(w http.ResponseWriter, r *http.Request) {
 		p.NoIndex = true
 	case current != nil:
 		p.Title = current.Name
-		p.Description = current.Name + " from Avalon. " + siteDescription
+		p.Description = current.Name + " from Avalon Foods. " + siteDescription
 		p.Canonical = a.cfg.BaseURL + "/products?category=" + current.Slug
 	}
 	a.render(w, r, "store/products.html", p)
@@ -127,6 +127,7 @@ func (a *App) product(w http.ResponseWriter, r *http.Request) {
 	pg := page{
 		Title:       p.Name,
 		Description: desc,
+		OGType:      "product",
 		JSONLD:      a.productJSONLD(p, desc),
 		Data:        map[string]any{"Product": p, "Related": related, "Selected": selectedVariant(p.Variants)},
 	}
@@ -194,7 +195,7 @@ func (a *App) productJSONLD(p store.ProductFull, desc string) template.JS {
 	data := map[string]any{
 		"@context": "https://schema.org", "@type": "Product",
 		"name": p.Name, "description": desc, "image": images, "url": url,
-		"brand":  map[string]any{"@type": "Brand", "name": "Avalon"},
+		"brand":  map[string]any{"@type": "Brand", "name": "Avalon Foods"},
 		"offers": offers,
 	}
 	b, err := json.Marshal(data)

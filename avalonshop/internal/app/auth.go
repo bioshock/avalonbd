@@ -170,7 +170,7 @@ func (a *App) registerPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.login(w, u.ID, string(hash))
-	a.setFlash(w, "Welcome to Avalon!")
+	a.setFlash(w, "Welcome to Avalon Foods!")
 	http.Redirect(w, r, "/account", http.StatusSeeOther)
 }
 

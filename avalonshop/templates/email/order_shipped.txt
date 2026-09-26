@@ -1,4 +1,4 @@
-Subject: Order {{.Order.Number}} is on its way — Avalon
+Subject: Order {{.Order.Number}} is on its way — Avalon Foods
 
 Hi {{.Order.Name}},
 
@@ -6,4 +6,4 @@ Your order {{.Order.Number}} has been handed to delivery. Please keep {{taka .Or
 
 Track: {{.TrackURL}}
 
-Avalon Corporation · Rajshahi
+Avalon Foods · avalonbd.com

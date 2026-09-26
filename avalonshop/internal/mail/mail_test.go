@@ -19,7 +19,7 @@ func TestRenderAndDevSend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if subj != "Reset your Avalon password" || !strings.Contains(body, "https://x/reset/abc") || strings.HasPrefix(body, "Subject:") {
+	if subj != "Reset your Avalon Foods password" || !strings.Contains(body, "https://x/reset/abc") || strings.HasPrefix(body, "Subject:") {
 		t.Fatalf("subject=%q body=%q", subj, body)
 	}
 	if err := m.SendNow("ana@example.com", "password_reset", map[string]any{"Name": "Ana", "ResetURL": "u"}); err != nil {

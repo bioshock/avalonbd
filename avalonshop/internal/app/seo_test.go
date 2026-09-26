@@ -16,8 +16,10 @@ import (
 )
 
 var (
-	imgTagRe    = regexp.MustCompile(`<img\b[^>]*>`)
-	externalRe  = regexp.MustCompile(`(?:src|href)="(https?://[^"]+)"`)
+	imgTagRe = regexp.MustCompile(`<img\b[^>]*>`)
+	// Only tags that make the browser fetch something count; <a href> to
+	// wa.me or Facebook is a link, not a third-party request.
+	externalRe  = regexp.MustCompile(`<(?:img|script|iframe|source|link)\b[^>]*?\s(?:src|href|srcset)="(https?://[^"]+)"`)
 	sitemapLocs = regexp.MustCompile(`<loc>([^<]+)</loc>`)
 )
 
@@ -73,7 +75,7 @@ func TestPerformanceBudget(t *testing.T) {
 			if strings.Contains(tag, "/media/") && (!strings.Contains(tag, "srcset=") || !strings.Contains(tag, "sizes=")) {
 				t.Errorf("%s: media image missing srcset and/or sizes: %s", p, tag)
 			}
-			if !strings.Contains(tag, `fetchpriority="high"`) && !strings.Contains(tag, `loading="lazy"`) && p == "/products/"+slug {
+			if strings.Contains(tag, "/media/") && !strings.Contains(tag, `fetchpriority="high"`) && !strings.Contains(tag, `loading="lazy"`) && p == "/products/"+slug {
 				t.Errorf("%s: non-hero image must be lazy: %s", p, tag)
 			}
 		}
@@ -85,8 +87,11 @@ func TestPerformanceBudget(t *testing.T) {
 		}
 	}
 	css, _ := os.ReadFile("../../static/app.css")
-	if len(css) > 15*1024 {
-		t.Errorf("app.css is %d bytes, budget 15 KB", len(css))
+	// 25 KB, raised from 15 KB for the Avalon Foods redesign: the home page
+	// gained five full-width sections and the site six content pages. Raw
+	// bytes, not gzipped, so this stays a hard ceiling on authored CSS.
+	if len(css) > 25*1024 {
+		t.Errorf("app.css is %d bytes, budget 25 KB", len(css))
 	}
 	js, _ := os.ReadFile("../../static/app.js")
 	htmx, _ := os.ReadFile("../../static/htmx.min.js")

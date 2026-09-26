@@ -1,9 +1,9 @@
-Subject: Order {{.Order.Number}} delivered — Avalon
+Subject: Order {{.Order.Number}} delivered — Avalon Foods
 
 Hi {{.Order.Name}},
 
-Order {{.Order.Number}} is marked delivered. Thank you for buying from Avalon.
+Order {{.Order.Number}} is marked delivered. Thank you for buying from Avalon Foods.
 
 If anything is wrong with your order, reply to this email.
 
-Avalon Corporation · Rajshahi
+Avalon Foods · avalonbd.com

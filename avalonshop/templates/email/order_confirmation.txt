@@ -1,4 +1,4 @@
-Subject: Order {{.Order.Number}} received — Avalon
+Subject: Order {{.Order.Number}} received — Avalon Foods
 
 Hi {{.Order.Name}},
 
@@ -15,4 +15,4 @@ Deliver to:
 
 Track your order: {{.TrackURL}}
 
-Avalon Corporation · Rajshahi
+Avalon Foods · avalonbd.com

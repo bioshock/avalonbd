@@ -7,15 +7,17 @@
 <meta name="description" content="{{.Description}}">
 {{if .NoIndex}}<meta name="robots" content="noindex">{{end}}
 <link rel="canonical" href="{{.Canonical}}">
-<meta property="og:site_name" content="Avalon">
+<meta property="og:site_name" content="Avalon Foods">
 <meta property="og:title" content="{{.Title}}">
 <meta property="og:description" content="{{.Description}}">
 <meta property="og:url" content="{{.Canonical}}">
-<meta property="og:type" content="{{if .JSONLD}}product{{else}}website{{end}}">
+<meta property="og:type" content="{{or .OGType "website"}}">
 {{if .OGImage}}<meta property="og:image" content="{{.OGImage}}">{{end}}
-<meta name="theme-color" content="#1f6b3a">
+<meta name="theme-color" content="#1f5d2e">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="preload" href="/static/fonts/manrope.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/static/fonts/lora.woff2" as="font" type="font/woff2" crossorigin>
+{{block "head" .}}{{end}}
 <link rel="stylesheet" href="/static/app.css?v={{.V}}">
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false}'>
 <script src="/static/htmx.min.js?v={{.V}}" defer></script>
@@ -23,20 +25,39 @@
 {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
 </head>
 <body>
+{{template "icons.html"}}
 <header class="nav"><div class="in">
-  <a class="brand" href="/">Avalon</a>
-  <nav>
-    <a href="/products">Shop</a>
-    {{if .User}}<a href="/account">Account</a>{{else}}<a href="/login">Login</a>{{end}}
-    <a class="cart-btn" href="/cart" hx-get="/cart/drawer" hx-target="#drawer" hx-swap="innerHTML">Cart {{template "cart_badge.html" .CartCount}}</a>
-  </nav>
+  <a class="brand" href="/"><img src="/static/logo.svg" width="80" height="48" alt="Avalon Foods"></a>
+  <nav class="primary" aria-label="Main">{{template "navlinks" .}}</nav>
+  <div class="actions">
+    <a class="icon-btn" href="/products" aria-label="Search products"><svg class="i" aria-hidden="true"><use href="#i-search"/></svg></a>
+    <a class="btn sm shop-now" href="/products">Shop Now</a>
+    <a class="cart-btn" href="/cart" hx-get="/cart/drawer" hx-target="#drawer" hx-swap="innerHTML" aria-label="Cart"><svg class="i" aria-hidden="true"><use href="#i-cart"/></svg>{{template "cart_badge.html" .CartCount}}</a>
+    <details class="menu"><summary aria-label="Menu"><svg class="i" aria-hidden="true"><use href="#i-menu"/></svg></summary><nav aria-label="Mobile">{{template "navlinks" .}}</nav></details>
+  </div>
 </div></header>
 {{if .Flash}}<div class="flash" role="status">{{.Flash}}</div>{{end}}
-<main class="wrap">{{template "content" .}}</main>
+<main{{if not .Wide}} class="wrap"{{end}}>{{template "content" .}}</main>
 <footer class="foot"><div class="in">
-  <span>Avalon Corporation</span><span>·</span><span>Building towards 2050</span><span>·</span><span>Rajshahi, Bangladesh</span><span>·</span><a href="/products">Shop</a>
+  <div class="foot-brand">
+    <img src="/static/logo.svg" width="80" height="48" alt="Avalon Foods" loading="lazy">
+    <p class="tagline">{{.Site.Tagline}}</p>
+    <p class="muted">{{.Site.Bio}}</p>
+  </div>
+  <nav class="foot-links" aria-label="Footer">
+    <a href="/products">Products</a><a href="/about">About</a><a href="/journey">How it's made</a><a href="/contact">Contact</a>
+    <a href="/delivery-returns">Delivery &amp; Returns</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a>
+  </nav>
+  <div class="foot-contact">
+    <a href="{{wa "Hi Avalon Foods!"}}" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+    <a href="{{.Site.Tel}}"><svg class="i" aria-hidden="true"><use href="#i-phone"/></svg>{{.Site.Phone}}</a>
+    <a href="mailto:{{.Site.Email}}"><svg class="i" aria-hidden="true"><use href="#i-mail"/></svg>{{.Site.Email}}</a>
+    <a href="{{.Site.Facebook}}" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-facebook"/></svg>Facebook</a>
+  </div>
+  <p class="copy">© 2026 Avalon Foods. All rights reserved.</p>
 </div></footer>
 <div class="scrim" data-close-cart></div>
 <aside id="drawer" class="drawer" aria-hidden="true" aria-label="Shopping cart"></aside>
 </body>
 </html>
+{{define "navlinks"}}<a href="/"{{if eq .Path "/"}} aria-current="page"{{end}}>Home</a><a href="/about"{{if eq .Path "/about"}} aria-current="page"{{end}}>About</a><a href="/products"{{if hasPrefix .Path "/products"}} aria-current="page"{{end}}>Products</a><a href="/journey"{{if eq .Path "/journey"}} aria-current="page"{{end}}>How it's made</a><a href="/contact"{{if eq .Path "/contact"}} aria-current="page"{{end}}>Contact</a>{{if .User}}<a href="/account">Account</a>{{else}}<a href="/login">Login</a>{{end}}{{end}}

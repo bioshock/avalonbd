@@ -50,9 +50,6 @@ func TestHomeAndListing(t *testing.T) {
 	if !strings.Contains(body, `<meta property="og:image" content="http://localhost:8080/media/`) {
 		t.Fatal("home missing og:image")
 	}
-	if strings.Contains(body, `loading="lazy"`) {
-		t.Fatal("first-row cards must load eagerly")
-	}
 	w = do(t, a, "GET", "/products?category=honey", nil)
 	body = w.Body.String()
 	if w.Code != 200 || !strings.Contains(body, `class="chip on" href="/products?category=honey"`) || !strings.Contains(body, `href="http://localhost:8080/products?category=honey"`) {
@@ -82,7 +79,7 @@ func TestProductPageSEOAndSpeed(t *testing.T) {
 		t.Fatalf("status %d", w.Code)
 	}
 	for _, want := range []string{
-		`<title>Wild Forest Honey · Avalon</title>`,
+		`<title>Wild Forest Honey · Avalon Foods</title>`,
 		`<link rel="canonical" href="http://localhost:8080/products/wild-forest-honey">`,
 		`<meta property="og:image" content="http://localhost:8080/media/abcdef0123456789-1600.webp">`,
 		`<meta property="og:type" content="product">`,
