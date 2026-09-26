@@ -6,9 +6,10 @@
     <div class="field"><label for="name">Name</label><input id="name" type="text" name="name" value="{{$p.Name}}" required>{{with $d.Errors.name}}<p class="err">{{.}}</p>{{end}}</div>
     <div class="field"><label for="slug">URL slug</label><input id="slug" type="text" name="slug" value="{{$p.Slug}}" placeholder="auto from name"><p class="help">Lowercase letters, numbers, hyphens. Changing it breaks old links.</p></div>
   </div>
+  <div class="field"><label for="tagline">Tagline (one line on cards and the home page)</label><input id="tagline" type="text" name="tagline" value="{{$p.Tagline}}" maxlength="160">{{with $d.Errors.tagline}}<p class="err">{{.}}</p>{{end}}</div>
   <div class="row">
     <div class="field"><label for="category_id">Category</label><select id="category_id" name="category_id"><option value="">— none —</option>{{range $d.Categories}}<option value="{{.ID}}"{{if and $p.CategoryID (eq .ID (derefInt64 $p.CategoryID))}} selected{{end}}>{{.Name}}</option>{{end}}</select></div>
-    <div class="field"><label class="check"><input type="checkbox" name="active"{{if $p.Active}} checked{{end}}> Active (visible in the shop)</label><label class="check"><input type="checkbox" name="featured"{{if $p.Featured}} checked{{end}}> Featured on the home page</label></div>
+    <div class="field"><label class="check"><input type="checkbox" name="active"{{if $p.Active}} checked{{end}}> Active (visible in the shop)</label><label class="check"><input type="checkbox" name="featured"{{if $p.Featured}} checked{{end}}> Featured on the home page</label><label class="check"><input type="checkbox" name="promo"{{if $p.Promo}} checked{{end}}> Promo banner on the home page (only one product at a time)</label></div>
   </div>
   <div class="field"><label for="description">Description</label><textarea id="description" name="description" rows="8">{{$p.Description}}</textarea><p class="help">Plain text. Line breaks are kept.</p></div>
   <div class="field"><label for="meta_description">Meta description (search snippet)</label><input id="meta_description" type="text" name="meta_description" value="{{$p.MetaDescription}}" maxlength="160"><p class="help">Up to 160 characters. Leave empty to use the start of the description.</p>{{with $d.Errors.meta_description}}<p class="err">{{.}}</p>{{end}}</div>
@@ -16,9 +17,10 @@
   <h2>Variants</h2>
   {{with $d.Errors.variants}}<div class="errbox" role="alert">{{.}}</div>{{end}}
   <div class="table-wrap"><table class="variants" id="variants">
-    <thead><tr><th>Name</th><th>SKU</th><th>Price (৳)</th><th>Stock</th><th>Sort</th><th></th></tr></thead>
+    <thead><tr><th>Name</th><th>SKU</th><th>Price (৳)</th><th>Regular price (৳)</th><th>Stock</th><th>Sort</th><th></th></tr></thead>
     <tbody>{{range $d.Variants}}{{template "variant_row.html" .}}{{end}}</tbody>
   </table></div>
+  <p class="help">Regular price is optional. When it is higher than the price, the shop shows it crossed out with “Save ৳X”.</p>
   <p><button class="btn sm ghost" type="button" hx-get="/admin/products/variant-row" hx-target="#variants tbody" hx-swap="beforeend">Add variant</button></p>
   <button class="btn" type="submit">{{if $d.IsNew}}Create product{{else}}Save changes{{end}}</button>
   {{if not $d.IsNew}} <a class="btn ghost" href="/products/{{$p.Slug}}">View in shop</a>{{end}}

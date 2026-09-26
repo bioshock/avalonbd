@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"avalonshop/internal/img"
 	"avalonshop/internal/store"
@@ -85,36 +84,29 @@ func (a *App) adminProductEdit(w http.ResponseWriter, r *http.Request) {
 
 // parseProductForm reads the product fields and the repeated variant_* fields.
 // Rows with an empty name are ignored so blank template rows are harmless.
+// Rules shared with the API live in validateProduct; this only adds the
+// form-specific parsing (numbers typed as text, the C2 stock guard).
 func parseProductForm(r *http.Request) (store.Product, []store.Variant, map[string]string) {
-	errs := map[string]string{}
 	if err := r.ParseForm(); err != nil {
-		errs["form"] = "Could not read the form."
-		return store.Product{}, nil, errs
+		return store.Product{}, nil, map[string]string{"form": "Could not read the form."}
 	}
 	p := store.Product{
-		Name:            strings.TrimSpace(r.FormValue("name")),
-		Slug:            strings.TrimSpace(r.FormValue("slug")),
+		Name:            r.FormValue("name"),
+		Slug:            r.FormValue("slug"),
 		Description:     strings.TrimSpace(r.FormValue("description")),
 		MetaDescription: strings.TrimSpace(r.FormValue("meta_description")),
+		Tagline:         strings.TrimSpace(r.FormValue("tagline")),
 		Active:          r.FormValue("active") == "on",
 		Featured:        r.FormValue("featured") == "on",
+		Promo:           r.FormValue("promo") == "on",
 	}
 	if cid, _ := strconv.ParseInt(r.FormValue("category_id"), 10, 64); cid > 0 {
 		p.CategoryID = &cid
 	}
-	if p.Name == "" {
-		errs["name"] = "Name is required."
-	}
-	if utf8.RuneCountInString(p.MetaDescription) > 160 {
-		errs["meta_description"] = "Keep the meta description under 160 characters; search engines cut it there."
-	}
-	if p.Slug == "" {
-		p.Slug = p.Name
-	}
-	p.Slug = store.Slugify(p.Slug)
 
 	f := r.Form
 	var vs []store.Variant
+	badNumber := false
 	for i := range f["variant_name"] {
 		name := strings.TrimSpace(f["variant_name"][i])
 		if name == "" {
@@ -129,8 +121,16 @@ func parseProductForm(r *http.Request) (store.Product, []store.Variant, map[stri
 		id, _ := strconv.ParseInt(get("variant_id"), 10, 64)
 		price, err1 := strconv.Atoi(get("variant_price"))
 		stock, err2 := strconv.Atoi(get("variant_stock"))
-		if err1 != nil || err2 != nil || price < 0 || stock < 0 {
-			errs["variants"] = "Price and stock must be whole numbers, 0 or more."
+		if err1 != nil || err2 != nil {
+			badNumber = true
+		}
+		var regular *int
+		if s := get("variant_regular_price"); s != "" {
+			if n, err := strconv.Atoi(s); err != nil {
+				badNumber = true
+			} else {
+				regular = &n
+			}
 		}
 		// C2: variant_stock_was carries the stock value this row was
 		// rendered with (a hidden field in variant_row.html). If the
@@ -155,10 +155,18 @@ func parseProductForm(r *http.Request) (store.Product, []store.Variant, map[stri
 			}
 		}
 		sku := get("variant_sku")
-		vs = append(vs, store.Variant{ID: id, Name: name, SKU: &sku, Price: price, Stock: stock, Sort: sort, SkipStockUpdate: skipStock})
+		vs = append(vs, store.Variant{ID: id, Name: name, SKU: &sku, Price: price, RegularPrice: regular, Stock: stock, Sort: sort, SkipStockUpdate: skipStock})
 	}
-	if len(vs) == 0 {
-		errs["variants"] = "Add at least one variant (even a single default size)."
+	errs := validateProduct(&p, vs)
+	// The form shows one message for every per-row problem.
+	for k := range errs {
+		if strings.HasPrefix(k, "variants[") {
+			delete(errs, k)
+			badNumber = true
+		}
+	}
+	if badNumber {
+		errs["variants"] = "Price and stock must be whole numbers, 0 or more."
 	}
 	return p, vs, errs
 }

@@ -541,3 +541,62 @@ func TestAdminProductOldSlugOfDeactivatedProduct404s(t *testing.T) {
 		t.Fatalf("current slug of a deactivated product: got %d, want 404", w.Code)
 	}
 }
+
+func TestAdminProductTaglinePromoRegularPrice(t *testing.T) {
+	a, st := newDBApp(t)
+	adm := adminSession(t, a, st)
+	ctx := context.Background()
+	form := productForm("Essential Spice Trio", []string{"", "3 × 100g", "AV-TRIO-300", "499", "5"})
+	form.Set("tagline", "Three essential kitchen ingredients.")
+	form.Set("promo", "on")
+	form.Add("variant_regular_price", "550")
+	w := do(t, a, "POST", "/admin/products/new", strings.NewReader(form.Encode()), "Cookie", adm)
+	if w.Code != 303 {
+		t.Fatalf("create: %d\n%s", w.Code, w.Body.String())
+	}
+	p, err := st.GetProductBySlug(ctx, "essential-spice-trio", false)
+	if err != nil || p.Tagline != "Three essential kitchen ingredients." || !p.Promo || p.Variants[0].RegularPrice == nil || *p.Variants[0].RegularPrice != 550 {
+		t.Fatalf("fields lost: %+v %v", p, err)
+	}
+	// The edit form shows them back.
+	body := do(t, a, "GET", "/admin/products/"+itoa(p.ID), nil, "Cookie", adm).Body.String()
+	for _, want := range []string{`name="tagline" value="Three essential kitchen ingredients."`, `name="promo" checked`, `name="variant_regular_price" min="0" value="550"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("edit form missing %q", want)
+		}
+	}
+	// Blank regular price clears it; a non-number is rejected.
+	edit := productForm("Essential Spice Trio", []string{itoa(p.Variants[0].ID), "3 × 100g", "AV-TRIO-300", "499", "5"})
+	edit.Add("variant_regular_price", "")
+	if w := do(t, a, "POST", "/admin/products/"+itoa(p.ID), strings.NewReader(edit.Encode()), "Cookie", adm); w.Code != 303 {
+		t.Fatalf("edit: %d", w.Code)
+	}
+	if p, _ = st.GetProduct(ctx, p.ID); p.Variants[0].RegularPrice != nil || p.Promo {
+		t.Fatalf("blank regular price should clear it and unchecked promo should clear promo: %+v", p)
+	}
+	edit.Set("variant_regular_price", "abc")
+	if w := do(t, a, "POST", "/admin/products/"+itoa(p.ID), strings.NewReader(edit.Encode()), "Cookie", adm); w.Code != 422 || !strings.Contains(w.Body.String(), "whole numbers") {
+		t.Fatalf("bad regular price: %d", w.Code)
+	}
+}
+
+func TestValidateProduct(t *testing.T) {
+	neg := -1
+	p := store.Product{Name: "  Onion Powder ", Slug: ""}
+	errs := validateProduct(&p, []store.Variant{{Name: "100g", Price: -5, Stock: -1, RegularPrice: &neg}, {Name: " ", Price: 1}})
+	if p.Name != "Onion Powder" || p.Slug != "onion-powder" {
+		t.Fatalf("normalize: %+v", p)
+	}
+	for _, k := range []string{"variants[0].price", "variants[0].stock", "variants[0].regular_price", "variants[1].name"} {
+		if errs[k] == "" {
+			t.Errorf("missing error %s in %v", k, errs)
+		}
+	}
+	if errs := validateProduct(&store.Product{Name: ""}, nil); errs["name"] == "" || errs["variants"] == "" {
+		t.Fatalf("empty product: %v", errs)
+	}
+	ok := store.Product{Name: "X"}
+	if errs := validateProduct(&ok, []store.Variant{{Name: "a", Price: 0}}); len(errs) != 0 {
+		t.Fatalf("valid product flagged: %v", errs)
+	}
+}
