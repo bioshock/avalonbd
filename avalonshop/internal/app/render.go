@@ -16,8 +16,9 @@ import (
 )
 
 // siteDescription is the default meta/OG description for pages that don't set
-// their own. Declared once, here; other tasks reuse it rather than redeclaring it.
-const siteDescription = "Premium food products from Bangladesh. From local ingredients to better food."
+// their own. Derived from Site.Bio so the two copies of this sentence can't
+// drift apart; other tasks reuse it rather than redeclaring it.
+var siteDescription = site.Bio
 
 // page is what every layout receives. Handlers fill the SEO fields and Data;
 // render fills the rest.
@@ -42,8 +43,13 @@ type page struct {
 
 func (a *App) funcs() template.FuncMap {
 	return template.FuncMap{
-		"taka":   money.Format,
-		"imgURL": func(stem string, w int) string { return "/media/" + img.Filename(stem, w) },
+		"taka": money.Format,
+		// imgURL names the file for the largest width that is both <= want
+		// and <= the image's actual stored width: img.WidthsFor only
+		// generates variants below (and equal to) the stored width, so
+		// asking for a "want" wider than what's stored would name a file
+		// that was never generated.
+		"imgURL": func(stem string, want, width int) string { return "/media/" + img.Filename(stem, min(want, width)) },
 		"srcset": func(stem string, width int) string {
 			var parts []string
 			for _, w := range img.WidthsFor(width) {

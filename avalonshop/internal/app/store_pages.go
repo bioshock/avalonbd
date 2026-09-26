@@ -16,26 +16,32 @@ import (
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	featured, err := a.st.ListProductCards(ctx, store.ListOpts{FeaturedOnly: true, Limit: 8})
-	if err == nil && len(featured) == 0 {
-		featured, err = a.st.ListProductCards(ctx, store.ListOpts{Limit: 8})
-	}
+	featured, err := a.st.ListProductCards(ctx, store.ListOpts{FeaturedOnly: true, Limit: 6})
 	if err != nil {
 		a.serverError(w, r, err)
 		return
 	}
-	cats, err := a.st.ListCategories(ctx)
-	if err != nil {
+	var promo *store.ProductFull
+	var promoVariant store.Variant
+	switch pr, err := a.st.GetPromo(ctx); {
+	case err == nil && len(pr.Variants) > 0:
+		promo, promoVariant = &pr, selectedVariant(pr.Variants)
+	case err != nil && !errors.Is(err, store.ErrNotFound):
 		a.serverError(w, r, err)
 		return
 	}
-	p := page{
-		Title:       "Avalon Shop · Fresh from Rajshahi",
+	og := a.cardOGImage(featured)
+	if og == "" {
+		og = a.cfg.BaseURL + "/static/img/hero-1600.webp"
+	}
+	a.render(w, r, "store/home.html", page{
+		Title:       "Avalon Foods · From Nature to Your Kitchen",
 		Description: siteDescription,
-		OGImage:     a.cardOGImage(featured),
-		Data:        map[string]any{"Featured": featured, "Categories": cats},
-	}
-	a.render(w, r, "store/home.html", p)
+		OGImage:     og,
+		JSONLD:      a.businessJSONLD(),
+		Wide:        true,
+		Data:        map[string]any{"Featured": featured, "Promo": promo, "PromoVariant": promoVariant},
+	})
 }
 
 func (a *App) products(w http.ResponseWriter, r *http.Request) {

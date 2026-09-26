@@ -50,6 +50,9 @@ func TestHomeAndListing(t *testing.T) {
 	if !strings.Contains(body, `<meta property="og:image" content="http://localhost:8080/media/`) {
 		t.Fatal("home missing og:image")
 	}
+	if !strings.Contains(body, `<link rel="preload" as="image" href="/static/img/hero-960.webp"`) || !strings.Contains(body, `fetchpriority="high"`) {
+		t.Fatal("hero image must be preloaded and high priority")
+	}
 	w = do(t, a, "GET", "/products?category=honey", nil)
 	body = w.Body.String()
 	if w.Code != 200 || !strings.Contains(body, `class="chip on" href="/products?category=honey"`) || !strings.Contains(body, `href="http://localhost:8080/products?category=honey"`) {
@@ -136,5 +139,84 @@ func TestTruncateAndSelectedVariant(t *testing.T) {
 	}
 	if selectedVariant(vs[:1]).ID != 1 {
 		t.Fatal("should fall back to first variant")
+	}
+}
+
+func TestHomeSpicesPromoAndWhatsApp(t *testing.T) {
+	a, st := newDBApp(t)
+	ctx := context.Background()
+	w := do(t, a, "GET", "/", nil)
+	if w.Code != 200 || strings.Contains(w.Body.String(), `class="promo"`) || strings.Contains(w.Body.String(), "Our Essential Spices") {
+		t.Fatalf("empty shop: promo and spices sections must be absent (%d)", w.Code)
+	}
+
+	reg := 150
+	onion, _ := st.CreateProduct(ctx, store.Product{Slug: "onion", Name: "Avalon Onion Powder", Tagline: "Fine-ground onion.", Active: true, Featured: true},
+		[]store.Variant{{Name: "100g", Price: 130, RegularPrice: &reg, Stock: 5}})
+	same := 180
+	garlic, _ := st.CreateProduct(ctx, store.Product{Slug: "garlic", Name: "Avalon Garlic Powder", Active: true, Featured: true},
+		[]store.Variant{{Name: "100g", Price: 180, RegularPrice: &same, Stock: 0}}) // sold out; regular == price
+	trioReg := 550
+	trio, _ := st.CreateProduct(ctx, store.Product{Slug: "trio", Name: "Essential Spice Trio", Tagline: "Three in one.", Description: "Onion Powder — 100g\nGarlic Powder — 100g\n", Active: true, Promo: true},
+		[]store.Variant{{Name: "3 × 100g", Price: 499, RegularPrice: &trioReg, Stock: 3}})
+	on, _ := st.GetProduct(ctx, onion)
+	ga, _ := st.GetProduct(ctx, garlic)
+	tr, _ := st.GetProduct(ctx, trio)
+
+	body := do(t, a, "GET", "/", nil).Body.String()
+	for _, want := range []string{
+		"Our Essential Spices", "Fine-ground onion.", "100g",
+		`<s class="was">৳ 150</s>`, "Save ৳ 20", // onion card
+		`name="variant_id" value="` + itoa(on.Variants[0].ID) + `"`, // quick add for in-stock single variant
+		`class="promo"`, "Essential Spice Trio", "Three in one.",
+		"Garlic Powder — 100g", // checklist from description lines
+		"<s>৳ 550</s>", "৳ 499", "Save ৳ 51",
+		`name="variant_id" value="` + itoa(tr.Variants[0].ID) + `"`,
+		`href="https://wa.me/8801933309009?text=Hi%20Avalon%20Foods%2C%20I%27d%20like%20to%20order%3A%20Essential%20Spice%20Trio"`,
+		"Why Avalon Foods?", `href="/journey"`, "Explore All Products",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("home missing %q", want)
+		}
+	}
+	// Review Focus 4: sold-out single-variant card shows Sold out and no quick
+	// add. Asserted on the "variant_id" input specifically (not a bare
+	// `value="<id>"`), which would collide with every quick-add form's own
+	// `name="qty" value="1"` whenever the sold-out variant's id happens to be 1.
+	if strings.Contains(body, `name="variant_id" value="`+itoa(ga.Variants[0].ID)+`"`) || !strings.Contains(body, "Sold out") {
+		t.Error("sold-out garlic must not have a quick add form")
+	}
+	// regular == price: nothing crossed out for garlic.
+	if strings.Contains(body, "৳ 180</s>") {
+		t.Error("regular price equal to price must not be struck through")
+	}
+	if strings.Count(body, "<h1") != 1 {
+		t.Error("exactly one h1")
+	}
+
+	m := jsonldRe.FindStringSubmatch(body)
+	if m == nil {
+		t.Fatal("no JSON-LD on home")
+	}
+	var ld map[string]any
+	if err := json.Unmarshal([]byte(m[1]), &ld); err != nil {
+		t.Fatalf("home JSON-LD invalid: %v\n%s", err, m[1])
+	}
+	addr, _ := ld["address"].(map[string]any)
+	same2, _ := ld["sameAs"].([]any)
+	if ld["@type"] != "LocalBusiness" || ld["telephone"] != "+8801933309009" || addr["addressLocality"] != "Rajshahi" || addr["postalCode"] != "6100" || len(same2) != 1 || same2[0] != "https://www.facebook.com/share/1Lzv9YkGFs/" {
+		t.Fatalf("LocalBusiness wrong: %v", ld)
+	}
+	if !strings.Contains(body, `<meta property="og:type" content="website">`) {
+		t.Error("home og:type must stay website")
+	}
+
+	// Review Focus 5: an inactive promo product removes the banner.
+	tr.Active = false
+	if err := st.UpdateProduct(ctx, tr.Product, tr.Variants); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(do(t, a, "GET", "/", nil).Body.String(), `class="promo"`) {
+		t.Error("inactive promo must not render")
 	}
 }

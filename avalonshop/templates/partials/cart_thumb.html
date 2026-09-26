@@ -1,1 +1,1 @@
-{{if .ImageFile}}<img src="{{imgURL (deref .ImageFile) 400}}" srcset="{{srcset (deref .ImageFile) (derefInt .ImageWidth)}}" sizes="64px" width="64" height="64" alt="{{deref .ImageAlt}}" loading="lazy" decoding="async">{{else}}<div class="ph"></div>{{end}}
+{{if .ImageFile}}<img src="{{imgURL (deref .ImageFile) 400 (derefInt .ImageWidth)}}" srcset="{{srcset (deref .ImageFile) (derefInt .ImageWidth)}}" sizes="64px" width="64" height="64" alt="{{deref .ImageAlt}}" loading="lazy" decoding="async">{{else}}<div class="ph"></div>{{end}}

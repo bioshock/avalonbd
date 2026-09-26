@@ -4,8 +4,8 @@
 <div class="pp">
   <div class="gallery">
     {{if $p.Images}}{{$first := index $p.Images 0}}
-    <img id="gallery-main" class="main" src="{{imgURL $first.File 900}}" srcset="{{srcset $first.File $first.Width}}" sizes="(min-width: 900px) 50vw, 100vw" width="{{$first.Width}}" height="{{$first.Height}}" alt="{{$first.Alt}}" fetchpriority="high" decoding="async">
-    {{if gt (len $p.Images) 1}}<div class="thumbs">{{range $i, $im := $p.Images}}<img{{if eq $i 0}} class="on"{{end}} src="{{imgURL $im.File 400}}" srcset="{{srcset $im.File $im.Width}}" sizes="64px" width="64" height="64" alt="{{$im.Alt}}" loading="lazy" decoding="async" tabindex="0" data-thumb data-src="{{imgURL $im.File 900}}" data-srcset="{{srcset $im.File $im.Width}}" data-alt="{{$im.Alt}}">{{end}}</div>{{end}}
+    <img id="gallery-main" class="main" src="{{imgURL $first.File 900 $first.Width}}" srcset="{{srcset $first.File $first.Width}}" sizes="(min-width: 900px) 50vw, 100vw" width="{{$first.Width}}" height="{{$first.Height}}" alt="{{$first.Alt}}" fetchpriority="high" decoding="async">
+    {{if gt (len $p.Images) 1}}<div class="thumbs">{{range $i, $im := $p.Images}}<img{{if eq $i 0}} class="on"{{end}} src="{{imgURL $im.File 400 $im.Width}}" srcset="{{srcset $im.File $im.Width}}" sizes="64px" width="64" height="64" alt="{{$im.Alt}}" loading="lazy" decoding="async" tabindex="0" data-thumb data-src="{{imgURL $im.File 900 $im.Width}}" data-srcset="{{srcset $im.File $im.Width}}" data-alt="{{$im.Alt}}">{{end}}</div>{{end}}
     {{else}}<div class="main ph" role="img" aria-label="No image yet"></div>{{end}}
   </div>
   <div class="buy">

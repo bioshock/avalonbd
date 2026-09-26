@@ -84,6 +84,7 @@ type AdminProductRow struct {
 	Active       bool
 	Featured     bool
 	ImageFile    *string `db:"image_file"`
+	ImageWidth   *int    `db:"image_width"` // the stored file's actual width, so imgURL never asks for a wider variant than exists
 }
 
 type SitemapEntry struct {
@@ -173,7 +174,8 @@ func (s *Store) ListProductsAdmin(ctx context.Context) ([]AdminProductRow, error
 		select p.id, p.slug, p.name, coalesce(c.name, '') as category,
 		       (select count(*) from variants where product_id = p.id)::int as variant_count,
 		       p.active, p.featured,
-		       (select file from product_images where product_id = p.id order by sort, id limit 1) as image_file
+		       (select file from product_images where product_id = p.id order by sort, id limit 1) as image_file,
+		       (select width from product_images where product_id = p.id order by sort, id limit 1) as image_width
 		from products p left join categories c on c.id = p.category_id
 		order by p.name`)
 	if err != nil {

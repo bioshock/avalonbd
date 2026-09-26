@@ -29,6 +29,22 @@ func TestSiteHelpers(t *testing.T) {
 	}
 }
 
+// TestImgURLClampsToStoredWidth: img.WidthsFor only generates widths at or
+// below the stored image's actual width, so asking imgURL for a width wider
+// than what's stored (e.g. requesting 400 for an image that was uploaded at
+// 320px) must fall back to the stored width instead of naming a variant file
+// that was never generated.
+func TestImgURLClampsToStoredWidth(t *testing.T) {
+	a := newApp(t, nil)
+	imgURL, ok := a.funcs()["imgURL"].(func(string, int, int) string)
+	if !ok {
+		t.Fatal("imgURL func not found or wrong signature")
+	}
+	if got, want := imgURL("x", 400, 320), "/media/x-320.webp"; got != want {
+		t.Fatalf("imgURL(x, 400, 320) = %q, want %q", got, want)
+	}
+}
+
 // TestShellAndBrand renders a DB-free page (the 404) to check the shared
 // header/footer, and scans every template for retired brand wording.
 func TestShellAndBrand(t *testing.T) {

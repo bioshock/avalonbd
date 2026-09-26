@@ -1,12 +1,88 @@
-{{define "content"}}
+{{define "head"}}<link rel="preload" as="image" href="/static/img/hero-960.webp" imagesrcset="/static/img/hero-960.webp 960w, /static/img/hero-1600.webp 1600w" imagesizes="100vw" fetchpriority="high">{{end}}
+{{define "content"}}{{$d := .Data}}
 <section class="hero">
-  <p class="eyebrow">Fresh from Rajshahi</p>
-  <h1>Good things,<br>grown well.</h1>
-  <p>Small batches. Honest sourcing. Cash on delivery anywhere in Bangladesh.</p>
-  <a class="btn" href="/products">Shop now</a>
+  <img src="/static/img/hero-960.webp" srcset="/static/img/hero-960.webp 960w, /static/img/hero-1600.webp 1600w" sizes="100vw" width="1600" height="981" alt="Avalon onion, garlic and ginger powder jars on a wooden table" fetchpriority="high" decoding="async">
+  <svg class="note" viewBox="0 0 230 160" role="img" aria-label="Good Ingredients, Brighter Meals"><g transform="rotate(-10 115 80)"><text x="12" y="38">Good</text><text x="34" y="72">Ingredients</text><text x="22" y="108">Brighter</text><text x="70" y="142">Meals</text></g></svg>
+  <div class="wrap">
+    <h1>From Nature<br>to <em>Your Kitchen</em></h1>
+    <p>Discover thoughtfully processed food products made from carefully selected ingredients, designed to bring convenience, consistency and quality to everyday cooking.</p>
+    <div class="cta">
+      <a class="btn" href="/products">Explore Products <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      <a class="btn outline" href="{{wa "Hi Avalon Foods, I'd like to place an order."}}" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> Order on WhatsApp</a>
+    </div>
+    <ul class="feats">
+      <li><svg class="i" aria-hidden="true"><use href="#i-leaf"/></svg>Carefully Selected Ingredients</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-bowl"/></svg>Convenient Food Products</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Thoughtful Processing</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg>Made in Bangladesh</li>
+    </ul>
+  </div>
 </section>
-{{with .Data.Categories}}<div class="chips">{{range .}}<a class="chip" href="/products?category={{.Slug}}">{{.Name}}</a>{{end}}</div>{{end}}
-<div class="section-head"><h2>Featured</h2><a href="/products">All products →</a></div>
-{{if .Data.Featured}}<div class="grid">{{range $i, $c := .Data.Featured}}{{template "product_card.html" (cardData $c $i)}}{{end}}</div>
-{{else}}<p class="empty">Products are on their way.</p>{{end}}
+
+{{with $d.Featured}}
+<section class="band paper">
+  <img class="leaf-l" src="/static/img/leaf.webp" width="228" height="479" alt="" loading="lazy" decoding="async">
+  <div class="wrap">
+    <div class="band-head">
+      <h2>Our Essential Spices</h2>
+      <p class="sub">Everyday Ingredients. Made Convenient.</p>
+      <p>Bring essential kitchen ingredients into your everyday cooking with Avalon Foods. Our spice products are carefully processed and conveniently packaged for easy use at home.</p>
+    </div>
+    <div class="spices">{{range .}}{{template "spice_card.html" .}}{{end}}</div>
+  </div>
+</section>
+{{end}}
+
+{{with $d.Promo}}{{$v := $d.PromoVariant}}
+<section class="promo"><div class="wrap"><div class="in">
+  <div>
+    <h2><a href="/products/{{.Slug}}">{{.Name}}</a></h2>
+    {{with .Tagline}}<p class="tag">{{.}}</p>{{end}}
+    {{with lines .Description}}<ul class="ticks">{{range .}}<li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>{{.}}</li>{{end}}</ul>{{end}}
+    <div class="pricebox">
+      {{with was $v.Price $v.RegularPrice}}<span class="muted">Regular price: <s>{{taka .}}</s></span>{{end}}
+      <span class="big">{{taka $v.Price}}</span>
+      {{with was $v.Price $v.RegularPrice}}<span class="save">Save {{taka (sub . $v.Price)}}</span>{{end}}
+    </div>
+    <div class="cta">
+      {{if gt $v.Stock 0}}<form method="post" action="/cart/items" hx-post="/cart/items" hx-target="#drawer" hx-swap="innerHTML"><input type="hidden" name="variant_id" value="{{$v.ID}}"><input type="hidden" name="qty" value="1"><button class="btn" type="submit"><svg class="i" aria-hidden="true"><use href="#i-cart"/></svg> Add to cart</button></form>
+      {{else}}<a class="btn" href="/products/{{.Slug}}">Sold out · View</a>{{end}}
+      <a class="btn outline" href="{{wa (print "Hi Avalon Foods, I'd like to order: " .Name)}}" rel="noopener"><svg class="i" aria-hidden="true"><use href="#i-whatsapp"/></svg> Order on WhatsApp</a>
+    </div>
+  </div>
+  <div class="promo-art">
+    {{with .Images}}{{$im := index . 0}}<img src="{{imgURL $im.File 900 $im.Width}}" srcset="{{srcset $im.File $im.Width}}" sizes="(min-width: 900px) 40vw, 90vw" width="{{$im.Width}}" height="{{$im.Height}}" alt="{{$im.Alt}}" loading="lazy" decoding="async">{{end}}
+    <img class="plate" src="/static/img/plate.webp" width="600" height="465" alt="" loading="lazy" decoding="async">
+  </div>
+</div></div></section>
+{{end}}
+
+<section class="band"><div class="wrap why">
+  <div>
+    <h2>Why Avalon Foods?</h2>
+    <div class="why-grid">
+      <div><svg class="i" aria-hidden="true"><use href="#i-leaf"/></svg><h3>Carefully Selected Ingredients</h3><p>We focus on thoughtful ingredient selection and responsible product development.</p></div>
+      <div><svg class="i" aria-hidden="true"><use href="#i-bowl"/></svg><h3>Convenient Food Products</h3><p>Designed to make everyday food preparation simpler and more convenient.</p></div>
+      <div><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg><h3>Thoughtful Processing</h3><p>We aim for consistent processing and practical food solutions for modern kitchens.</p></div>
+      <div><svg class="i" aria-hidden="true"><use href="#i-pin"/></svg><h3>Made in Bangladesh</h3><p>Proudly making food products in Rajshahi for kitchens across Bangladesh.</p></div>
+    </div>
+  </div>
+  <aside class="journey-side">
+    <h3>From Nature to Your Kitchen</h3>
+    <ol class="steps">
+      <li><svg class="i" aria-hidden="true"><use href="#i-leaf"/></svg>Raw materials</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-shield"/></svg>Careful processing</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-check"/></svg>Quality &amp; consistency</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-package"/></svg>Thoughtful packaging</li>
+      <li><svg class="i" aria-hidden="true"><use href="#i-bowl"/></svg>Your kitchen</li>
+    </ol>
+    <a href="/journey">See how it's made <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+  </aside>
+</div></section>
+
+<section class="sunset">
+  <img src="/static/img/sunset-960.webp" srcset="/static/img/sunset-960.webp 960w, /static/img/sunset-1600.webp 1600w" sizes="100vw" width="1600" height="243" alt="" loading="lazy" decoding="async">
+  <svg class="note-lg" viewBox="0 0 360 110" role="img" aria-label="Good Food. A Better Tomorrow."><g transform="rotate(-6 180 55)"><text x="70" y="42">Good Food.</text><text x="20" y="92">A Better Tomorrow.</text></g></svg>
+  <a class="btn" href="/products">Explore All Products <svg class="i" aria-hidden="true"><use href="#i-arrow"/></svg></a>
+</section>
 {{end}}

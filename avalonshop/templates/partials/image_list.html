@@ -1,7 +1,7 @@
 {{if .Errors}}<div class="errbox" role="alert">{{range .Errors}}<div>{{.}}</div>{{end}}</div>{{end}}
 <div class="imgs">
 {{range .Images}}<figure>
-  <img src="{{imgURL .File 400}}" width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" loading="lazy" decoding="async">
+  <img src="{{imgURL .File 400 .Width}}" width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" loading="lazy" decoding="async">
   <form method="post" action="/admin/images/{{.ID}}" hx-post="/admin/images/{{.ID}}" hx-target="#images" hx-swap="innerHTML">
     <input type="hidden" name="product_id" value="{{.ProductID}}">
     <input type="text" name="alt" value="{{.Alt}}" placeholder="Alt text: describe the photo" aria-label="Alt text">

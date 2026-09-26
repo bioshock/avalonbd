@@ -1,0 +1,13 @@
+<article class="spice">
+  {{if .ImageFile}}<img src="{{imgURL (deref .ImageFile) 400 (derefInt .ImageWidth)}}" srcset="{{srcset (deref .ImageFile) (derefInt .ImageWidth)}}" sizes="(min-width: 760px) 14vw, 40vw" width="{{derefInt .ImageWidth}}" height="{{derefInt .ImageHeight}}" alt="{{deref .ImageAlt}}" loading="lazy" decoding="async">{{else}}<div class="ph" role="img" aria-label="No image yet"></div>{{end}}
+  <div>
+    <h3><a href="/products/{{.Slug}}">{{.Name}}</a></h3>
+    {{if eq .VariantCount 1}}<p class="v">{{.VariantName}}</p>{{end}}
+    {{with .Tagline}}<p class="tag">{{.}}</p>{{end}}
+    {{template "price_line" .}}
+    <div class="acts">
+      <a class="btn sm" href="/products/{{.Slug}}">View Product</a>
+      {{if eq .VariantCount 1}}{{if .InStock}}<form method="post" action="/cart/items" hx-post="/cart/items" hx-target="#drawer" hx-swap="innerHTML"><input type="hidden" name="variant_id" value="{{.VariantID}}"><input type="hidden" name="qty" value="1"><button class="btn sm outline" type="submit">Add to cart</button></form>{{else}}<span class="hint">Sold out</span>{{end}}{{end}}
+    </div>
+  </div>
+</article>
