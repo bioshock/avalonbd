@@ -1,0 +1,44 @@
+{
+  "categories": [
+    {"slug": "spices-powders", "name": "Spices & Powders"},
+    {"slug": "combo", "name": "Combo"}
+  ],
+  "products": [
+    {
+      "slug": "onion-powder", "name": "Avalon Onion Powder", "category": "spices-powders",
+      "image": "onion.png", "image_alt": "Jar of Avalon Onion Powder, 100g",
+      "tagline": "A convenient fine-ground onion ingredient for everyday cooking.",
+      "description": "Fine-ground onion powder for curries, bhuna, marinades, soups and everyday cooking.\nMade in small batches in Rajshahi from carefully selected onions.\nNet weight: 100g.",
+      "meta_description": "Avalon Onion Powder, 100g jar. Fine-ground onion for everyday cooking, made in Rajshahi. Cash on delivery across Bangladesh.",
+      "active": true, "featured": true, "promo": false,
+      "variants": [{"id": 0, "name": "100g", "sku": "AV-ONION-100", "price": 130, "regular_price": null, "stock": 50}]
+    },
+    {
+      "slug": "garlic-powder", "name": "Avalon Garlic Powder", "category": "spices-powders",
+      "image": "garlic.png", "image_alt": "Jar of Avalon Garlic Powder, 100g",
+      "tagline": "A convenient way to add garlic flavor and aroma to your favorite dishes.",
+      "description": "Fine-ground garlic powder for curries, stir-fries, marinades and everyday cooking.\nMade in small batches in Rajshahi from carefully selected garlic.\nNet weight: 100g.",
+      "meta_description": "Avalon Garlic Powder, 100g jar. Garlic flavor and aroma in a spoonful, made in Rajshahi. Cash on delivery across Bangladesh.",
+      "active": true, "featured": true, "promo": false,
+      "variants": [{"id": 0, "name": "100g", "sku": "AV-GARLIC-100", "price": 180, "regular_price": null, "stock": 50}]
+    },
+    {
+      "slug": "ginger-powder", "name": "Avalon Ginger Powder", "category": "spices-powders",
+      "image": "ginger.png", "image_alt": "Jar of Avalon Ginger Powder, 100g",
+      "tagline": "Finely ground ginger for curries, soups, marinades and everyday recipes.",
+      "description": "Finely ground ginger for curries, soups, marinades, tea and everyday recipes.\nMade in small batches in Rajshahi from carefully selected ginger.\nNet weight: 100g.",
+      "meta_description": "Avalon Ginger Powder, 100g jar. Finely ground ginger for everyday recipes, made in Rajshahi. Cash on delivery across Bangladesh.",
+      "active": true, "featured": true, "promo": false,
+      "variants": [{"id": 0, "name": "100g", "sku": "AV-GINGER-100", "price": 240, "regular_price": null, "stock": 50}]
+    },
+    {
+      "slug": "essential-spice-trio", "name": "Essential Spice Trio", "category": "combo",
+      "image": "trio.png", "image_alt": "Essential Spice Trio gift box with onion, garlic and ginger powder jars",
+      "tagline": "Three essential kitchen ingredients in one convenient 3-piece set.",
+      "description": "Onion Powder — 100g\nGarlic Powder — 100g\nGinger Powder — 100g\nTotal net weight: 300g",
+      "meta_description": "Essential Spice Trio: Avalon onion, garlic and ginger powder, 3 × 100g, for ৳499. Cash on delivery across Bangladesh.",
+      "active": true, "featured": false, "promo": true,
+      "variants": [{"id": 0, "name": "3 × 100g", "sku": "AV-TRIO-300", "price": 499, "regular_price": 550, "stock": 30}]
+    }
+  ]
+}
