@@ -88,6 +88,15 @@ func TestProductsListAndGet(t *testing.T) {
 	if len(rows) != 3 {
 		t.Fatalf("admin rows: %d", len(rows))
 	}
+	var honeyRow store.AdminProductRow
+	for _, r := range rows {
+		if r.Slug == "honey" {
+			honeyRow = r
+		}
+	}
+	if honeyRow.ImageFile == nil || *honeyRow.ImageFile != "abc" || honeyRow.ImageWidth == nil || *honeyRow.ImageWidth != 1600 {
+		t.Fatalf("admin row image width: %+v", honeyRow)
+	}
 }
 
 func TestProductUpdateVariantsAndDelete(t *testing.T) {

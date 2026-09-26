@@ -174,9 +174,10 @@ func (s *Store) ListProductsAdmin(ctx context.Context) ([]AdminProductRow, error
 		select p.id, p.slug, p.name, coalesce(c.name, '') as category,
 		       (select count(*) from variants where product_id = p.id)::int as variant_count,
 		       p.active, p.featured,
-		       (select file from product_images where product_id = p.id order by sort, id limit 1) as image_file,
-		       (select width from product_images where product_id = p.id order by sort, id limit 1) as image_width
+		       i.file as image_file, i.width as image_width
 		from products p left join categories c on c.id = p.category_id
+		left join lateral (select file, width from product_images
+		                   where product_id = p.id order by sort, id limit 1) i on true
 		order by p.name`)
 	if err != nil {
 		return nil, err
