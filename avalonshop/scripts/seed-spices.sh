@@ -29,7 +29,7 @@ while read -r p; do
   cid="$(jq --arg s "$(jq -r .category <<<"$p")" '.[] | select(.slug == $s) | .id' <<<"$cats")"
   body="$(jq --argjson cid "$cid" 'del(.category, .image, .image_alt) + {category_id: $cid}' <<<"$p")"
   id="$(api -X POST -H 'Content-Type: application/json' -d "$body" "$BASE_URL/api/admin/products" | jq .id)"
-  api -F "images=@$dir/$(jq -r .image <<<"$p")" -F "alt=$(jq -r .image_alt <<<"$p")" \
+  api -F "images=@$dir/$(jq -r .image <<<"$p")" --form-string "alt=$(jq -r .image_alt <<<"$p")" \
     "$BASE_URL/api/admin/products/$id/images" >/dev/null
   echo "product $slug: created (id $id) with image"
 done < <(jq -c '.products[]' "$dir/products.json")
