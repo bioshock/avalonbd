@@ -170,7 +170,7 @@ func TestBodyLimits(t *testing.T) {
 func TestSecurityInvariants(t *testing.T) {
 	a := newApp(t, nil)
 	w := do(t, a, "GET", "/no-such-page", nil) // any route: secureHeaders runs before routing
-	const wantCSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
+	const wantCSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self' https://analytics.c14.cloud; connect-src 'self' https://analytics.c14.cloud; frame-ancestors 'none'; form-action 'self'; base-uri 'self'"
 	if got := w.Header().Get("Content-Security-Policy"); got != wantCSP {
 		t.Fatalf("CSP = %q, want %q", got, wantCSP)
 	}

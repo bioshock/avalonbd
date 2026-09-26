@@ -16,7 +16,7 @@ func secureHeaders(next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'")
+		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self' https://analytics.c14.cloud; connect-src 'self' https://analytics.c14.cloud; frame-ancestors 'none'; form-action 'self'; base-uri 'self'")
 		next.ServeHTTP(w, r)
 	})
 }

@@ -63,7 +63,7 @@ func TestPerformanceBudget(t *testing.T) {
 			t.Errorf("%s: expected exactly one <h1>", p)
 		}
 		for _, m := range externalRe.FindAllStringSubmatch(html, -1) {
-			if !strings.HasPrefix(m[1], a.cfg.BaseURL) && !strings.HasPrefix(m[1], "https://schema.org") {
+			if !strings.HasPrefix(m[1], a.cfg.BaseURL) && !strings.HasPrefix(m[1], "https://schema.org") && !strings.HasPrefix(m[1], "https://analytics.c14.cloud/") {
 				t.Errorf("%s: external resource %s", p, m[1])
 			}
 		}
