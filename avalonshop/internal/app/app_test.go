@@ -181,7 +181,7 @@ func TestSecurityInvariants(t *testing.T) {
 			a := newApp(t, nil)
 			a.cfg.BaseURL = c.baseURL
 			rec := httptest.NewRecorder()
-			a.login(rec, 1)
+			a.login(rec, 1, "any-hash")
 			var sess *http.Cookie
 			for _, ck := range rec.Result().Cookies() {
 				if ck.Name == "sess" {

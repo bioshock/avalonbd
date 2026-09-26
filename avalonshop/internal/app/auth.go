@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -105,7 +106,7 @@ func (a *App) loginPost(w http.ResponseWriter, r *http.Request) {
 		a.authPage(w, r, http.StatusUnauthorized, "login", "Log in", f)
 		return
 	}
-	a.login(w, u.ID)
+	a.login(w, u.ID, u.PasswordHash)
 	dest := f.Next
 	if dest == "" {
 		dest = "/account"
@@ -168,7 +169,7 @@ func (a *App) registerPost(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.login(w, u.ID)
+	a.login(w, u.ID, string(hash))
 	a.setFlash(w, "Welcome to Avalon!")
 	http.Redirect(w, r, "/account", http.StatusSeeOther)
 }
@@ -238,8 +239,58 @@ func (a *App) resetPost(w http.ResponseWriter, r *http.Request) {
 		a.serverError(w, r, err)
 		return
 	}
-	a.login(w, id)
-	a.setFlash(w, "Password updated.")
+	a.login(w, id, string(hash))
+	a.setFlash(w, "Password updated. Any other device signed in to this account has been signed out.")
+	http.Redirect(w, r, "/account", http.StatusSeeOther)
+}
+
+// accountInvalid re-renders the account page with field errors. It doesn't
+// swallow a store error: the page is mid-edit, and a failure must 500 rather
+// than silently render "no orders".
+func (a *App) accountInvalid(w http.ResponseWriter, r *http.Request, u *store.User, form, errs map[string]string) {
+	orders, err := a.st.ListOrdersByUser(r.Context(), u.ID)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.renderStatus(w, r, http.StatusUnprocessableEntity, "store/account.html", page{Title: "Your account", NoIndex: true, Data: accountData{User: u, Orders: orders, Form: form, Errors: errs}})
+}
+
+// accountPasswordPost changes the password of the signed-in user. Sessions are
+// signed over the password hash, so re-signing this device's cookie with the
+// new hash keeps it signed in while every other device's cookie stops
+// verifying. The current password is required and rate-limited per user, so a
+// stolen session cookie can't be turned into a permanent takeover by guessing
+// it.
+func (a *App) accountPasswordPost(w http.ResponseWriter, r *http.Request) {
+	u := a.currentUser(r)
+	key := "user:" + strconv.FormatInt(u.ID, 10)
+	pw := r.FormValue("password")
+	errs := map[string]string{}
+	switch {
+	case a.loginLimit.Blocked(key):
+		errs["current_password"] = "Too many attempts. Please try again in 15 minutes."
+	case bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(r.FormValue("current_password"))) != nil:
+		a.loginLimit.Hit(key)
+		errs["current_password"] = "That isn't your current password."
+	case !validPassword(pw):
+		errs["password"] = passwordLengthMsg
+	}
+	if len(errs) > 0 {
+		a.accountInvalid(w, r, u, map[string]string{"name": u.Name, "phone": u.Phone, "address": u.Address}, errs)
+		return
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcryptCost)
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	if err := a.st.UpdatePassword(r.Context(), u.ID, string(hash)); err != nil {
+		a.serverError(w, r, err)
+		return
+	}
+	a.login(w, u.ID, string(hash))
+	a.setFlash(w, "Password changed. Any other device signed in to this account has been signed out.")
 	http.Redirect(w, r, "/account", http.StatusSeeOther)
 }
 
@@ -280,14 +331,7 @@ func (a *App) accountPost(w http.ResponseWriter, r *http.Request) {
 		errs["address"] = "Address is too long."
 	}
 	if len(errs) > 0 {
-		// Don't swallow a store error here: this page is mid-edit, and a
-		// failure must 500 rather than silently render "no orders".
-		orders, err := a.st.ListOrdersByUser(r.Context(), u.ID)
-		if err != nil {
-			a.serverError(w, r, err)
-			return
-		}
-		a.renderStatus(w, r, http.StatusUnprocessableEntity, "store/account.html", page{Title: "Your account", NoIndex: true, Data: accountData{User: u, Orders: orders, Form: form, Errors: errs}})
+		a.accountInvalid(w, r, u, form, errs)
 		return
 	}
 	if err := a.st.UpdateProfile(r.Context(), u.ID, form["name"], form["phone"], form["address"]); err != nil {

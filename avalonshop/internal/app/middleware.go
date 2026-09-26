@@ -109,10 +109,13 @@ func (a *App) withUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasPrefix(r.URL.Path, "/static/") && !strings.HasPrefix(r.URL.Path, "/media/") {
 			if c, err := r.Cookie("sess"); err == nil {
-				if id, ok := a.tok.DecodeSession(c.Value, time.Now()); ok {
-					if u, err := a.st.GetUser(r.Context(), id); err == nil {
-						r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, &u))
-					}
+				var u store.User
+				if _, ok := a.tok.DecodeSession(c.Value, time.Now(), func(id int64) (string, bool) {
+					var err error
+					u, err = a.st.GetUser(r.Context(), id)
+					return u.PasswordHash, err == nil
+				}); ok {
+					r = r.WithContext(context.WithValue(r.Context(), ctxKey{}, &u))
 				}
 			}
 		}

@@ -96,6 +96,7 @@ func (a *App) routes() {
 	m.HandleFunc("POST /reset/{token}", a.resetPost)
 	m.HandleFunc("GET /account", a.requireUser(a.accountGet))
 	m.HandleFunc("POST /account", a.requireUser(a.accountPost))
+	m.HandleFunc("POST /account/password", a.requireUser(a.accountPasswordPost))
 	m.HandleFunc("GET /sitemap.xml", a.sitemap)
 	m.HandleFunc("GET /robots.txt", a.robots)
 	adm := a.requireAdmin

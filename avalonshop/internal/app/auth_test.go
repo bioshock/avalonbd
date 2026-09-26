@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,7 +26,11 @@ func loginForm(email, pw string) string {
 
 func sessionCookie(t *testing.T, a *App, userID int64) string {
 	t.Helper()
-	return "sess=" + a.tok.EncodeSession(userID, time.Now().Add(sessionTTL))
+	u, err := a.st.GetUser(context.Background(), userID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return "sess=" + a.tok.EncodeSession(userID, time.Now().Add(sessionTTL), u.PasswordHash)
 }
 
 func TestRegisterLoginLogout(t *testing.T) {
@@ -97,7 +102,8 @@ func TestForgotAndReset(t *testing.T) {
 	var logbuf bytes.Buffer
 	m, _ := mail.New("", "587", "", "", "shop@test.local", os.DirFS("../.."), slog.New(slog.NewTextHandler(&logbuf, nil)))
 	a.mail = m
-	do(t, a, "POST", "/register", strings.NewReader(registerForm("ana@example.com", "Ana", "correct horse")))
+	reg := do(t, a, "POST", "/register", strings.NewReader(registerForm("ana@example.com", "Ana", "correct horse")))
+	before := "sess=" + cookieHeader(reg, "sess")
 	w := do(t, a, "POST", "/forgot", strings.NewReader("email=nobody@example.com"))
 	if w.Code != 303 || cookieHeader(w, "flash") == "" {
 		t.Fatalf("unknown email must look identical: %d", w.Code)
@@ -119,6 +125,14 @@ func TestForgotAndReset(t *testing.T) {
 	w = do(t, a, "POST", "/reset/"+tok, strings.NewReader("password=new password 9"))
 	if w.Code != 303 || cookieHeader(w, "sess") == "" {
 		t.Fatalf("reset post: %d", w.Code)
+	}
+	// Resetting is how someone locks out whoever else has their account, so
+	// it has to end every session opened under the old password.
+	if do(t, a, "GET", "/account", nil, "Cookie", before).Code == 200 {
+		t.Fatal("a session from before the reset still works after it")
+	}
+	if do(t, a, "GET", "/account", nil, "Cookie", "sess="+cookieHeader(w, "sess")).Code != 200 {
+		t.Fatal("the session the reset itself issued does not work")
 	}
 	if w := do(t, a, "GET", "/reset/"+tok, nil); w.Code != 200 || !strings.Contains(w.Body.String(), "expired") {
 		t.Fatal("token should be dead after use")
@@ -244,5 +258,75 @@ func TestRegisterAndResetPasswordOverByteCap(t *testing.T) {
 	w = do(t, a, "POST", "/reset/"+tok, strings.NewReader(url.Values{"password": {longPassword}}.Encode()))
 	if w.Code != 422 || !strings.Contains(w.Body.String(), "72 bytes") {
 		t.Fatalf("long password on reset: %d %s", w.Code, w.Body.String())
+	}
+}
+
+func passwordForm(current, next string) *strings.Reader {
+	return strings.NewReader(url.Values{"current_password": {current}, "password": {next}}.Encode())
+}
+
+func TestChangePasswordSignsOutOtherDevices(t *testing.T) {
+	a, _ := newDBApp(t)
+	do(t, a, "POST", "/register", strings.NewReader(registerForm("ana@example.com", "Ana", "correct horse")))
+	signIn := func(pw string) string {
+		t.Helper()
+		w := do(t, a, "POST", "/login", strings.NewReader(loginForm("ana@example.com", pw)))
+		if w.Code != 303 {
+			t.Fatalf("login with %q: %d", pw, w.Code)
+		}
+		return "sess=" + cookieHeader(w, "sess")
+	}
+	signedIn := func(cookie string) bool {
+		return do(t, a, "GET", "/account", nil, "Cookie", cookie).Code == 200
+	}
+	phone, laptop := signIn("correct horse"), signIn("correct horse")
+
+	if w := do(t, a, "POST", "/account/password", passwordForm("a guess", "brand new pass"), "Cookie", phone); w.Code != 422 || !strings.Contains(w.Body.String(), "your current password") {
+		t.Fatalf("wrong current password must be rejected: %d", w.Code)
+	}
+	if w := do(t, a, "POST", "/account/password", passwordForm("correct horse", "short"), "Cookie", phone); w.Code != 422 || !strings.Contains(w.Body.String(), "at least 8") {
+		t.Fatalf("too-short new password must be rejected: %d", w.Code)
+	}
+	if !signedIn(laptop) {
+		t.Fatal("a rejected change must not sign anyone out")
+	}
+
+	w := do(t, a, "POST", "/account/password", passwordForm("correct horse", "brand new pass"), "Cookie", phone)
+	if w.Code != 303 {
+		t.Fatalf("change password: %d", w.Code)
+	}
+	if !signedIn("sess=" + cookieHeader(w, "sess")) {
+		t.Fatal("the device that changed the password must stay signed in")
+	}
+	if signedIn(laptop) {
+		t.Fatal("another device's session survived the password change")
+	}
+	if signedIn(phone) {
+		t.Fatal("this device's pre-change cookie survived the password change")
+	}
+	if w := do(t, a, "POST", "/login", strings.NewReader(loginForm("ana@example.com", "correct horse"))); w.Code == 303 {
+		t.Fatal("the old password still logs in")
+	}
+	signIn("brand new pass")
+}
+
+// A stolen session cookie must not become a permanent takeover by guessing
+// the current password until it changes the password.
+func TestChangePasswordIsRateLimited(t *testing.T) {
+	a, _ := newDBApp(t)
+	if w := do(t, a, "POST", "/account/password", passwordForm("x", "brand new pass")); w.Code != 303 || !strings.HasPrefix(w.Header().Get("Location"), "/login") {
+		t.Fatalf("signed-out change must redirect to login: %d %q", w.Code, w.Header().Get("Location"))
+	}
+	reg := do(t, a, "POST", "/register", strings.NewReader(registerForm("ana@example.com", "Ana", "correct horse")))
+	c := "sess=" + cookieHeader(reg, "sess")
+	for i := 0; i < 5; i++ {
+		do(t, a, "POST", "/account/password", passwordForm("guess "+strconv.Itoa(i), "brand new pass"), "Cookie", c)
+	}
+	w := do(t, a, "POST", "/account/password", passwordForm("correct horse", "brand new pass"), "Cookie", c)
+	if w.Code != 422 || !strings.Contains(w.Body.String(), "Too many attempts") {
+		t.Fatalf("sixth attempt, even with the right password, must be refused: %d", w.Code)
+	}
+	if w := do(t, a, "POST", "/login", strings.NewReader(loginForm("ana@example.com", "correct horse"))); w.Code != 303 {
+		t.Fatal("a refused change must leave the password as it was")
 	}
 }

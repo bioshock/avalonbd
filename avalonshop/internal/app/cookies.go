@@ -41,8 +41,8 @@ func cartCount(lines []token.CartLine) int {
 	return n
 }
 
-func (a *App) login(w http.ResponseWriter, userID int64) {
-	a.setCookie(w, "sess", a.tok.EncodeSession(userID, time.Now().Add(sessionTTL)), int(sessionTTL.Seconds()))
+func (a *App) login(w http.ResponseWriter, userID int64, passwordHash string) {
+	a.setCookie(w, "sess", a.tok.EncodeSession(userID, time.Now().Add(sessionTTL), passwordHash), int(sessionTTL.Seconds()))
 }
 
 func (a *App) logout(w http.ResponseWriter) { a.setCookie(w, "sess", "", -1) }

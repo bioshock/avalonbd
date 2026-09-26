@@ -67,22 +67,18 @@ func (s Signer) DecodeCart(v string) []CartLine {
 	return out
 }
 
-func (s Signer) EncodeSession(userID int64, exp time.Time) string {
+// EncodeSession binds the session to the user's current password hash, so
+// changing the password signs out every other device holding an older cookie.
+// The "sess:" prefix matters: a session and a reset token share the id.exp
+// shape and are both signed over the hash, so without it either would verify
+// as the other.
+func (s Signer) EncodeSession(userID int64, exp time.Time, passwordHash string) string {
 	msg := fmt.Sprintf("%d.%d", userID, exp.Unix())
-	return msg + "." + s.sign(msg)
+	return msg + "." + s.sign("sess:"+msg+"."+passwordHash)
 }
 
-func (s Signer) DecodeSession(v string, now time.Time) (int64, bool) {
-	p := strings.Split(v, ".")
-	if len(p) != 3 || !s.verify(p[0]+"."+p[1], p[2]) {
-		return 0, false
-	}
-	id, err1 := strconv.ParseInt(p[0], 10, 64)
-	exp, err2 := strconv.ParseInt(p[1], 10, 64)
-	if err1 != nil || err2 != nil || id <= 0 || now.Unix() >= exp {
-		return 0, false
-	}
-	return id, true
+func (s Signer) DecodeSession(v string, now time.Time, lookupHash func(int64) (string, bool)) (int64, bool) {
+	return s.parseBound(v, "sess:", now, lookupHash)
 }
 
 // ResetToken binds the token to the current password hash, so it stops
@@ -93,6 +89,12 @@ func (s Signer) ResetToken(userID int64, exp time.Time, passwordHash string) str
 }
 
 func (s Signer) ParseReset(tok string, now time.Time, lookupHash func(int64) (string, bool)) (int64, bool) {
+	return s.parseBound(tok, "", now, lookupHash)
+}
+
+// parseBound verifies an id.exp.sig value signed over prefix+id.exp.hash,
+// where hash is the user's current password hash.
+func (s Signer) parseBound(tok, prefix string, now time.Time, lookupHash func(int64) (string, bool)) (int64, bool) {
 	p := strings.Split(tok, ".")
 	if len(p) != 3 {
 		return 0, false
@@ -103,7 +105,7 @@ func (s Signer) ParseReset(tok string, now time.Time, lookupHash func(int64) (st
 		return 0, false
 	}
 	hash, ok := lookupHash(id)
-	if !ok || !s.verify(p[0]+"."+p[1]+"."+hash, p[2]) {
+	if !ok || !s.verify(prefix+p[0]+"."+p[1]+"."+hash, p[2]) {
 		return 0, false
 	}
 	return id, true

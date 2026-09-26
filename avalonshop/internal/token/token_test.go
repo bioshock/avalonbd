@@ -78,46 +78,79 @@ func TestCartMalformedPayload(t *testing.T) {
 	}
 }
 
+// hashIs is a lookupHash that reports the user's current password hash as h.
+func hashIs(h string) func(int64) (string, bool) {
+	return func(int64) (string, bool) { return h, true }
+}
+
 func TestSession(t *testing.T) {
 	now := time.Unix(1700000000, 0)
-	v := s.EncodeSession(42, now.Add(time.Hour))
-	if id, ok := s.DecodeSession(v, now); !ok || id != 42 {
+	v := s.EncodeSession(42, now.Add(time.Hour), "hash-a")
+	if id, ok := s.DecodeSession(v, now, hashIs("hash-a")); !ok || id != 42 {
 		t.Fatalf("got %d %v", id, ok)
 	}
-	if _, ok := s.DecodeSession(v, now.Add(2*time.Hour)); ok {
+	if _, ok := s.DecodeSession(v, now.Add(2*time.Hour), hashIs("hash-a")); ok {
 		t.Fatal("expired session accepted")
 	}
-	if _, ok := s.DecodeSession("1.2.3", now); ok {
+	if _, ok := s.DecodeSession("1.2.3", now, hashIs("hash-a")); ok {
 		t.Fatal("bad signature accepted")
+	}
+	if _, ok := s.DecodeSession(v, now, func(int64) (string, bool) { return "", false }); ok {
+		t.Fatal("session accepted for a user that no longer exists")
+	}
+}
+
+// A password change must sign out every session issued under the old hash.
+func TestSessionDiesWithPasswordChange(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	v := s.EncodeSession(42, now.Add(time.Hour), "old-hash")
+	if _, ok := s.DecodeSession(v, now, hashIs("new-hash")); ok {
+		t.Fatal("session signed over the old password hash still accepted after the password changed")
+	}
+}
+
+// Sessions and reset tokens share the id.exp.sig shape and are both signed
+// over the password hash, so without domain separation each would verify as
+// the other: a leaked reset link would be a 30-day login cookie.
+func TestSessionAndResetTokenAreNotInterchangeable(t *testing.T) {
+	now := time.Unix(1700000000, 0)
+	reset := s.ResetToken(42, now.Add(time.Hour), "hash-a")
+	if _, ok := s.DecodeSession(reset, now, hashIs("hash-a")); ok {
+		t.Fatal("a password-reset token was accepted as a session cookie")
+	}
+	sess := s.EncodeSession(42, now.Add(time.Hour), "hash-a")
+	if _, ok := s.ParseReset(sess, now, hashIs("hash-a")); ok {
+		t.Fatal("a session cookie was accepted as a password-reset token")
 	}
 }
 
 func TestSessionExpiryBoundary(t *testing.T) {
 	exp := time.Unix(1700000000, 0)
-	v := s.EncodeSession(42, exp)
-	if id, ok := s.DecodeSession(v, exp.Add(-time.Nanosecond)); !ok || id != 42 {
+	v := s.EncodeSession(42, exp, "hash-a")
+	if id, ok := s.DecodeSession(v, exp.Add(-time.Nanosecond), hashIs("hash-a")); !ok || id != 42 {
 		t.Fatalf("unexpired session rejected: %d %v", id, ok)
 	}
-	if _, ok := s.DecodeSession(v, exp); ok {
+	if _, ok := s.DecodeSession(v, exp, hashIs("hash-a")); ok {
 		t.Fatal("session accepted at expiry")
 	}
 }
 
 func TestSessionInvalid(t *testing.T) {
 	now := time.Unix(1700000000, 0)
+	// Correctly signed, but the id or expiry itself is invalid.
 	for _, msg := range []string{"x.1700003600", "9223372036854775808.1700003600", "1.x", "1.9223372036854775808", "0.1700003600", "-1.1700003600"} {
-		if id, ok := s.DecodeSession(msg+"."+s.sign(msg), now); ok || id != 0 {
+		if id, ok := s.DecodeSession(msg+"."+s.sign("sess:"+msg+".hash-a"), now, hashIs("hash-a")); ok || id != 0 {
 			t.Fatalf("invalid session %q accepted: %d %v", msg, id, ok)
 		}
 	}
-	v := s.EncodeSession(42, now.Add(time.Hour))
+	v := s.EncodeSession(42, now.Add(time.Hour), "hash-a")
 	for _, tok := range []string{"", "1.2", v + ".extra", "43" + strings.TrimPrefix(v, "42")} {
-		if id, ok := s.DecodeSession(tok, now); ok || id != 0 {
+		if id, ok := s.DecodeSession(tok, now, hashIs("hash-a")); ok || id != 0 {
 			t.Fatalf("malformed or tampered session %q accepted: %d %v", tok, id, ok)
 		}
 	}
 	other := New([]byte(strings.Repeat("x", 32)))
-	if _, ok := other.DecodeSession(v, now); ok {
+	if _, ok := other.DecodeSession(v, now, hashIs("hash-a")); ok {
 		t.Fatal("wrong key accepted")
 	}
 }
