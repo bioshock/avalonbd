@@ -62,6 +62,22 @@ func TestLoadMailFromMustBeBareAddress(t *testing.T) {
 	}
 }
 
+func TestAdminAPIToken(t *testing.T) {
+	c, err := load(env(good()))
+	if err != nil || c.AdminAPIToken != "" {
+		t.Fatalf("unset token should disable the API: %q %v", c.AdminAPIToken, err)
+	}
+	m := good()
+	m["ADMIN_API_TOKEN"] = "too-short"
+	if _, err := load(env(m)); err == nil || !strings.Contains(err.Error(), "ADMIN_API_TOKEN") {
+		t.Fatalf("short token must fail at boot, got %v", err)
+	}
+	m["ADMIN_API_TOKEN"] = strings.Repeat("a", 64) + "\n" // pasted with a newline
+	if c, err := load(env(m)); err != nil || c.AdminAPIToken != strings.Repeat("a", 64) {
+		t.Fatalf("token should be trimmed: %q %v", c.AdminAPIToken, err)
+	}
+}
+
 func TestLoadDotEnv(t *testing.T) {
 	p := filepath.Join(t.TempDir(), ".env")
 	os.WriteFile(p, []byte("# comment\nFOO_TEST=bar\nQUOTED_TEST=\"a b\"\n\n"), 0o600)

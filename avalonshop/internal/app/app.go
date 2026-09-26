@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"avalonshop/internal/config"
@@ -30,6 +31,7 @@ type App struct {
 	loginLimit    *limiter
 	forgotLimit   *limiter
 	checkoutLimit *limiter
+	apiLimit      *limiter
 	mux           *http.ServeMux
 }
 
@@ -43,6 +45,7 @@ func New(cfg config.Config, st *store.Store, m *mail.Mailer, templates, static f
 		loginLimit:    newLimiter(5, 15*time.Minute),
 		forgotLimit:   newLimiter(5, 15*time.Minute),
 		checkoutLimit: newLimiter(10, time.Hour),
+		apiLimit:      newLimiter(300, time.Minute),
 		mux:           http.NewServeMux(),
 	}
 	if a.dhaka, err = time.LoadLocation("Asia/Dhaka"); err != nil {
@@ -128,7 +131,17 @@ func (a *App) routes() {
 	// Later tasks append their routes below this line.
 }
 
+// Handler routes /api/admin/ around the session and CSRF layers: the API
+// authenticates with a bearer token and never reads cookies.
 func (a *App) Handler() http.Handler {
 	csrf := http.NewCrossOriginProtection()
-	return secureHeaders(gzipMiddleware(limitBody(a.withUser(csrf.Handler(a.mux)))))
+	web := a.withUser(csrf.Handler(a.mux))
+	api := a.apiHandler()
+	return secureHeaders(gzipMiddleware(limitBody(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/admin/") {
+			api.ServeHTTP(w, r)
+			return
+		}
+		web.ServeHTTP(w, r)
+	}))))
 }

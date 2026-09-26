@@ -25,6 +25,7 @@ type Config struct {
 	OrderNotifyEmail string
 	AdminEmail       string
 	AdminPassword    string
+	AdminAPIToken    string
 }
 
 // Secure reports whether cookies should carry the Secure flag.
@@ -52,6 +53,7 @@ func load(get func(string) string) (Config, error) {
 		OrderNotifyEmail: get("ORDER_NOTIFY_EMAIL"),
 		AdminEmail:       get("ADMIN_EMAIL"),
 		AdminPassword:    get("ADMIN_PASSWORD"),
+		AdminAPIToken:    strings.TrimSpace(get("ADMIN_API_TOKEN")),
 	}
 	for _, kv := range [][2]string{
 		{"DATABASE_URL", c.DatabaseURL}, {"BASE_URL", c.BaseURL},
@@ -66,6 +68,12 @@ func load(get func(string) string) (Config, error) {
 		return c, errors.New("config: SESSION_SECRET must be at least 64 hex characters")
 	}
 	c.SessionSecret = sec
+
+	// The admin JSON API is off unless a token is set. A short token is a
+	// typo, not a choice: fail at boot instead of running a guessable API.
+	if c.AdminAPIToken != "" && len(c.AdminAPIToken) < 32 {
+		return c, errors.New("config: ADMIN_API_TOKEN must be at least 32 characters (generate one with: openssl rand -hex 32), or unset to disable the API")
+	}
 
 	// MAIL_FROM is used as both the SMTP envelope sender and the From:
 	// header (internal/mail). A display-name form such as
