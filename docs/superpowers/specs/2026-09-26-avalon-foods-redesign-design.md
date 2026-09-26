@@ -83,7 +83,8 @@ The live shop currently has zero products and zero categories; nothing is remove
   - Phone/WhatsApp: +880 1933-309009 → `tel:+8801933309009`,
     `https://wa.me/8801933309009?text=<url-encoded message>`
   - Email: shop@avalonbd.com
-  - Address: Katakhali, Rajshahi, Bangladesh
+  - Address: Shaheb Bazar, Ghoramara, Rajshahi 6100, Bangladesh (matches
+    the Facebook page)
   - Hours: Sat–Thu, 10am–8pm
   - Facebook: https://www.facebook.com/share/1Lzv9YkGFs/
 
@@ -132,12 +133,35 @@ to `sitemap.xml`.
 
 | Path | Content |
 |---|---|
-| `/about` | Who we are: a small Rajshahi food business starting with everyday spice powders, made in small batches with carefully selected ingredients. What we make now. Why (convenience and consistency for home kitchens). Where (Katakhali, Rajshahi). Link to Contact and Shop. |
-| `/journey` | "How it's made": sourcing → cleaning and drying → grinding → packing → delivery, each step one honest paragraph. No dates, timeline or capacity numbers. |
+| `/about` | Who we are: a small Rajshahi food business starting with everyday spice powders, made in small batches with carefully selected ingredients. What we make now. Why (convenience and consistency for home kitchens). Where (Shaheb Bazar, Rajshahi). Link to Contact and Shop. |
+| `/journey` | "How it's made": sourcing → cleaning and drying → grinding → packing → delivery, each step one honest paragraph. No dates, timeline or capacity numbers. Ends with "Follow our story on Facebook →" linking to the page's A100 Days Story posts (a link, not an embedded feed). |
 | `/contact` | Address, tap-to-call phone, WhatsApp link, email, hours, Facebook. No contact form (YAGNI; WhatsApp and email cover it). |
 | `/delivery-returns` | Delivery: cash on delivery across Bangladesh; typical times Rajshahi 1–2 days, rest of Bangladesh 2–4 days; delivered by courier partners; charges by area shown as a table read live from `delivery_zones`. Returns: damaged or wrong item → tell us within 48 hours of delivery with a photo, we replace or refund; opened food items cannot otherwise be returned. |
 | `/privacy` | Data collected (name, phone, address, email, order history), purpose (fulfil and support orders), session and cart cookies only, never sold, how to ask for deletion (email). |
 | `/terms` | Ordering and confirmation call, prices in BDT including VAT where applicable, cash on delivery, cancellation before dispatch, product information accuracy, liability limits, governing law Bangladesh, contact. |
+
+### 5.5 Brand consistency and search
+
+The Facebook page (https://www.facebook.com/share/1Lzv9YkGFs/) is the brand's
+main public presence; the site matches it.
+
+- Brand name is **Avalon Foods** everywhere: title suffix and fallback in
+  `render.go`, `og:site_name`, product JSON-LD `brand`, footer, and the
+  signature line of the three order emails (replacing "Avalon" / "Avalon
+  Corporation" / "Building towards 2050").
+- Home meta description and footer line reuse the Facebook bio: "Premium food
+  products from Bangladesh. From local ingredients to better food."
+  "Traceability" from the bio is **not** used until batch numbers and lab-test
+  dates are shown (plan Appendix B).
+- Home page carries `LocalBusiness` JSON-LD: name, logo URL,
+  url, telephone `+8801933309009`, email, `PostalAddress` (Shaheb Bazar,
+  Ghoramara, Rajshahi, 6100, BD), `openingHoursSpecification` Sat–Thu
+  10:00–20:00, `sameAs` [Facebook URL].
+- Not copied from Facebook: the cover image (factory, export map, ship, plane
+  — claims not yet true) and the page's reviews (real reviews are a later
+  feature).
+- Owner actions outside the code (listed in the rollout): point Facebook's
+  "Learn more" button at `/products`, set Facebook hours to Sat–Thu 10am–8pm.
 
 ## 6. Data and API
 
@@ -268,7 +292,8 @@ Test-first, following existing test style (`storetest` for DB tests,
   the sitemap; delivery page lists zones from the DB; home shows promo banner
   only when a promo product exists; strikethrough renders only when
   `regular_price > price`; WhatsApp links are URL-encoded and point at
-  `wa.me/8801933309009`.
+  `wa.me/8801933309009`; home JSON-LD parses as valid JSON with the
+  address and `sameAs`; no page or email contains "Avalon Corporation".
 - Budgets: `TestPerformanceBudget` passes for all public pages, including the
   new ones.
 - Visual: Playwright screenshots of home, products, product, cart, checkout
@@ -285,6 +310,8 @@ Test-first, following existing test style (`storetest` for DB tests,
 4. Production smoke test: home → Trio → add to cart → checkout page renders.
    Stop before placing an order.
 5. Add `web-access.txt` to `.gitignore` (done with this spec's commit).
+6. Owner: set Facebook's "Learn more" button to https://avalonbd.com/products
+   and its hours to Sat–Thu 10am–8pm.
 
 ## 10. Out of scope (follow-ups)
 
