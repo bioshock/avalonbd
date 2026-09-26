@@ -212,6 +212,13 @@ func TestAPIProductValidation(t *testing.T) {
 	if got, _ := st.GetProduct(ctx, target.ID); len(got.Variants) != 1 || got.Variants[0].ID != target.Variants[0].ID {
 		t.Fatalf("target variants changed: %+v", got.Variants)
 	}
+	if got, _ := st.GetProduct(ctx, other.ID); len(got.Variants) != 1 ||
+		got.Variants[0].ID != other.Variants[0].ID ||
+		got.Variants[0].Name != other.Variants[0].Name ||
+		got.Variants[0].Price != other.Variants[0].Price ||
+		got.Variants[0].Stock != other.Variants[0].Stock {
+		t.Fatalf("other product's variant changed: %+v", got.Variants)
+	}
 }
 
 // TestAPIProductUpdatePreservesStockDecrement is the C2 fix for the API: a

@@ -291,34 +291,28 @@ func (a *App) apiProductUpdate(w http.ResponseWriter, r *http.Request) {
 	errs := validateProduct(&p, vs)
 	// Review Focus 2: a variant id from another product would make
 	// syncVariants update nothing and then delete this product's real rows.
-	own := map[int64]int{} // variant id -> its live stock, for the SkipStockUpdate check below
+	own := map[int64]bool{}
 	for _, v := range existing.Variants {
-		own[v.ID] = v.Stock
+		own[v.ID] = true
 	}
 	for i, v := range vs {
 		if v.ID == 0 {
 			continue
 		}
-		stock, isOwn := own[v.ID]
-		if !isOwn {
+		if !own[v.ID] {
 			errs[fmt.Sprintf("variants[%d].id", i)] = "not a variant of this product (use 0 for a new variant)"
 			continue
 		}
 		// C2, ported from the admin form (products.go's SkipStockUpdate):
-		// the documented GET -> edit -> PUT round-trip resubmits whatever
-		// stock number the earlier GET returned for any field the client
-		// didn't mean to touch. Unlike the admin form, the JSON API has no
-		// hidden "rendered with" field distinct from the live value, so it
-		// cannot tell "untouched" apart from "stale". Treating a mismatch
-		// against the row's live stock as staleness and keeping the
-		// database's value is the safe side of that ambiguity: an order's
-		// decrement must never be silently reverted by an unrelated PUT
-		// (e.g. a price change) that carries a stale, pre-decrement number.
-		// A PUT that resubmits the same stock the row already has behaves
-		// identically either way.
-		if v.Stock != stock {
-			vs[i].SkipStockUpdate = true
-		}
+		// docs/api.md promises PUT never changes the stock of an existing
+		// variant, full stop. Whatever `stock` the client sends for a
+		// variant that already has an id is ignored and the row keeps its
+		// live value; only a new variant (id == 0) takes the stock from the
+		// request. This is what makes the documented GET -> edit -> PUT
+		// round-trip safe even when an order's decrement lands between the
+		// GET and the PUT: there is no live value to compare against and no
+		// window where a stale resubmission can win the race.
+		vs[i].SkipStockUpdate = true
 	}
 	if len(errs) > 0 {
 		apiError(w, http.StatusBadRequest, "validation failed", errs)
