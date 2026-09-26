@@ -152,6 +152,13 @@ func TestBodyLimits(t *testing.T) {
 	if w2.Code != http.StatusOK {
 		t.Fatalf("upload route: 2 MB body must not be rejected for size, got %d", w2.Code)
 	}
+
+	r3 := httptest.NewRequest("POST", "/api/admin/products/1/images", bytes.NewReader(body))
+	w3 := httptest.NewRecorder()
+	h.ServeHTTP(w3, r3)
+	if w3.Code != http.StatusOK {
+		t.Fatalf("API upload route: 2 MB body must not be rejected for size, got %d", w3.Code)
+	}
 }
 
 // TestSecurityInvariants is the M1 fix. The only prior CSP assertion in the

@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
+	"mime/multipart"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -243,6 +247,65 @@ func TestAPIProductUpdatePreservesStockDecrement(t *testing.T) {
 	}
 	if full.Variants[0].Price != 140 {
 		t.Fatalf("price change was lost: got %d, want 140", full.Variants[0].Price)
+	}
+}
+
+func testPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	m := image.NewNRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			m.Set(x, y, color.NRGBA{uint8(x), uint8(y), 100, 255})
+		}
+	}
+	var b bytes.Buffer
+	if err := png.Encode(&b, m); err != nil {
+		t.Fatal(err)
+	}
+	return b.Bytes()
+}
+
+func TestAPIImages(t *testing.T) {
+	a, st := apiApp(t)
+	ctx := context.Background()
+	id, _ := st.CreateProduct(ctx, store.Product{Slug: "p", Name: "P", Active: true}, []store.Variant{{Name: "x", Price: 1, Stock: 1}})
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	mw.WriteField("alt", "Jar of onion powder")
+	fw, _ := mw.CreateFormFile("images", "jar.png")
+	fw.Write(testPNG(t, 1200, 900))
+	mw.Close()
+	r := httptest.NewRequest("POST", "/api/admin/products/"+itoa(id)+"/images", &buf)
+	r.Header.Set("Authorization", "Bearer "+testToken)
+	r.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	a.Handler().ServeHTTP(w, r)
+	imgs := decodeBody[[]apiImage](t, w)
+	if w.Code != 201 || len(imgs) != 1 || imgs[0].ID == 0 || imgs[0].Width != 1200 || imgs[0].Alt != "Jar of onion powder" {
+		t.Fatalf("upload: %d %s", w.Code, w.Body.String())
+	}
+	p, _ := st.GetProduct(ctx, id)
+	if len(p.Images) != 1 || p.Images[0].File != imgs[0].File {
+		t.Fatalf("image not on product: %+v", p.Images)
+	}
+
+	// Not multipart → 400; unknown product → 404.
+	if w := apiDo(t, a, "POST", "/api/admin/products/"+itoa(id)+"/images", `{}`); w.Code != 400 {
+		t.Fatalf("json body to upload: %d", w.Code)
+	}
+	if w := apiDo(t, a, "POST", "/api/admin/products/999999/images", `{}`); w.Code != 404 {
+		t.Fatalf("unknown product: %d", w.Code)
+	}
+
+	if w := apiDo(t, a, "DELETE", "/api/admin/images/"+itoa(imgs[0].ID), nil); w.Code != 204 {
+		t.Fatalf("delete image: %d", w.Code)
+	}
+	if p, _ = st.GetProduct(ctx, id); len(p.Images) != 0 {
+		t.Fatal("image row still there")
+	}
+	if w := apiDo(t, a, "DELETE", "/api/admin/images/"+itoa(imgs[0].ID), nil); w.Code != 404 {
+		t.Fatalf("delete twice: %d", w.Code)
 	}
 }
 

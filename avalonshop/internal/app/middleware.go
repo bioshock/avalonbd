@@ -92,7 +92,7 @@ func gzipMiddleware(next http.Handler) http.Handler {
 func limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Body != nil {
-			if strings.HasPrefix(r.URL.Path, "/admin/products/") && strings.HasSuffix(r.URL.Path, "/images") {
+			if (strings.HasPrefix(r.URL.Path, "/admin/products/") || strings.HasPrefix(r.URL.Path, "/api/admin/products/")) && strings.HasSuffix(r.URL.Path, "/images") {
 				r.Body = http.MaxBytesReader(w, r.Body, 110<<20)
 			} else {
 				r.Body = http.MaxBytesReader(w, r.Body, 1<<20)

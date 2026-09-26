@@ -134,7 +134,8 @@ func (a *App) apiHandler() http.Handler {
 	m.HandleFunc("GET /api/admin/products/{id}", a.apiProductGet)
 	m.HandleFunc("PUT /api/admin/products/{id}", a.apiProductUpdate)
 	m.HandleFunc("DELETE /api/admin/products/{id}", a.apiProductDelete)
-	// Task 4 adds the image routes here.
+	m.HandleFunc("POST /api/admin/products/{id}/images", a.apiImagesUpload)
+	m.HandleFunc("DELETE /api/admin/images/{id}", a.apiImageDelete)
 	m.HandleFunc("/api/admin/", func(w http.ResponseWriter, r *http.Request) {
 		apiError(w, http.StatusNotFound, "no such endpoint", nil)
 	})
@@ -351,5 +352,55 @@ func (a *App) apiProductDelete(w http.ResponseWriter, r *http.Request) {
 	for _, im := range imgs {
 		img.Remove(a.cfg.UploadDir, im.File, im.Width)
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ---- images ----
+
+func (a *App) apiImagesUpload(w http.ResponseWriter, r *http.Request) {
+	p, ok := a.apiLoad(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 110<<20)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			apiError(w, http.StatusRequestEntityTooLarge, "upload too large: at most 10 images of 10 MB each", nil)
+			return
+		}
+		apiError(w, http.StatusBadRequest, "expected multipart/form-data with one or more files in the images field", nil)
+		return
+	}
+	defer r.MultipartForm.RemoveAll()
+	files := r.MultipartForm.File["images"]
+	if len(files) == 0 {
+		apiError(w, http.StatusBadRequest, "no files in the images field", nil)
+		return
+	}
+	saved, errs := a.saveImages(r.Context(), p.ID, files, strings.TrimSpace(r.FormValue("alt")))
+	if len(errs) > 0 {
+		// Files that did save stay saved; GET the product to see them.
+		apiError(w, http.StatusBadRequest, strings.Join(errs, " "), nil)
+		return
+	}
+	out := []apiImage{}
+	for _, im := range saved {
+		out = append(out, toAPIImage(im))
+	}
+	writeJSON(w, http.StatusCreated, out)
+}
+
+func (a *App) apiImageDelete(w http.ResponseWriter, r *http.Request) {
+	im, err := a.st.DeleteImage(r.Context(), pathID(r))
+	if errors.Is(err, store.ErrNotFound) {
+		apiError(w, http.StatusNotFound, "no such image", nil)
+		return
+	}
+	if err != nil {
+		a.apiServerError(w, r, err)
+		return
+	}
+	img.Remove(a.cfg.UploadDir, im.File, im.Width)
 	w.WriteHeader(http.StatusNoContent)
 }

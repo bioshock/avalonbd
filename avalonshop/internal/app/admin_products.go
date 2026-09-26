@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"strings"
@@ -263,6 +265,52 @@ func (a *App) adminVariantRow(w http.ResponseWriter, r *http.Request) {
 
 // ---- images ----
 
+// saveImages runs each upload through img.Process and records it on the
+// product. It returns the images saved and one message per file skipped.
+// Used by the admin form and the JSON API.
+func (a *App) saveImages(ctx context.Context, productID int64, files []*multipart.FileHeader, alt string) ([]store.Image, []string) {
+	var saved []store.Image
+	var errs []string
+	if len(files) > maxUploadFiles {
+		files = files[:maxUploadFiles]
+		errs = append(errs, "Only the first 10 files were processed.")
+	}
+	for _, fh := range files {
+		if fh.Size > maxUploadBytes {
+			errs = append(errs, truncateFilename(fh.Filename)+": over 10 MB.")
+			continue
+		}
+		f, err := fh.Open()
+		if err != nil {
+			errs = append(errs, truncateFilename(fh.Filename)+": could not read.")
+			continue
+		}
+		data, err := io.ReadAll(f)
+		f.Close()
+		if err != nil {
+			errs = append(errs, truncateFilename(fh.Filename)+": could not read.")
+			continue
+		}
+		// img.Process names the files itself (a random hex stem); the
+		// untrusted fh.Filename from the request is never used as a path.
+		res, err := img.Process(data, a.cfg.UploadDir)
+		if err != nil {
+			errs = append(errs, truncateFilename(fh.Filename)+": "+err.Error())
+			continue
+		}
+		im := store.Image{ProductID: productID, File: res.Stem, Alt: alt, Width: res.Width, Height: res.Height}
+		id, err := a.st.AddImage(ctx, im)
+		if err != nil {
+			img.Remove(a.cfg.UploadDir, res.Stem, res.Width)
+			errs = append(errs, truncateFilename(fh.Filename)+": could not save.")
+			continue
+		}
+		im.ID = id
+		saved = append(saved, im)
+	}
+	return saved, errs
+}
+
 func (a *App) imagesResponse(w http.ResponseWriter, r *http.Request, productID int64, errs []string) {
 	back := "/admin/products/" + strconv.FormatInt(productID, 10)
 	if !isHTMX(r) {
@@ -300,40 +348,7 @@ func (a *App) adminImagesUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.MultipartForm.RemoveAll()
-	var errs []string
-	files := r.MultipartForm.File["images"]
-	if len(files) > maxUploadFiles {
-		files = files[:maxUploadFiles]
-		errs = append(errs, "Only the first 10 files were processed.")
-	}
-	for _, fh := range files {
-		if fh.Size > maxUploadBytes {
-			errs = append(errs, truncateFilename(fh.Filename)+": over 10 MB.")
-			continue
-		}
-		f, err := fh.Open()
-		if err != nil {
-			errs = append(errs, truncateFilename(fh.Filename)+": could not read.")
-			continue
-		}
-		data, err := io.ReadAll(f)
-		f.Close()
-		if err != nil {
-			errs = append(errs, truncateFilename(fh.Filename)+": could not read.")
-			continue
-		}
-		// img.Process names the files itself (a random hex stem); the
-		// untrusted fh.Filename from the request is never used as a path.
-		res, err := img.Process(data, a.cfg.UploadDir)
-		if err != nil {
-			errs = append(errs, truncateFilename(fh.Filename)+": "+err.Error())
-			continue
-		}
-		if _, err := a.st.AddImage(r.Context(), store.Image{ProductID: id, File: res.Stem, Width: res.Width, Height: res.Height}); err != nil {
-			img.Remove(a.cfg.UploadDir, res.Stem, res.Width)
-			errs = append(errs, truncateFilename(fh.Filename)+": could not save.")
-		}
-	}
+	_, errs := a.saveImages(r.Context(), id, r.MultipartForm.File["images"], "")
 	a.imagesResponse(w, r, id, errs)
 }
 
