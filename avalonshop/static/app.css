@@ -254,7 +254,8 @@ td.num,th.num{text-align:right;font-family:var(--mono)}
 .side nav a{color:var(--foot-ink);text-decoration:none;padding:.45rem .7rem;border-radius:8px;font-size:.95rem}
 .side nav a.on,.side nav a:hover{background:rgba(255,255,255,.08);color:#fff}
 .side form{margin-top:1rem}
-.side .btn{width:100%}
+.side .btn{width:100%;color:var(--foot-ink);border-color:rgba(255,255,255,.35)}
+.side .btn:hover{color:#fff;background:rgba(255,255,255,.08)}
 .content{padding:1.5rem 1rem;max-width:1100px}
 @media(min-width:900px){.content{padding:2rem}}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem}
