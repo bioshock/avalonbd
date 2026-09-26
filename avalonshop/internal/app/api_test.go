@@ -210,6 +210,42 @@ func TestAPIProductValidation(t *testing.T) {
 	}
 }
 
+// TestAPIProductUpdatePreservesStockDecrement is the C2 fix for the API: a
+// client that does the documented GET -> edit price -> PUT round-trip must
+// not clobber a stock decrement (e.g. an order) that landed in between.
+func TestAPIProductUpdatePreservesStockDecrement(t *testing.T) {
+	a, st := apiApp(t)
+	ctx := context.Background()
+
+	body := onionJSON(0)
+	delete(body, "category_id")
+	created := decodeBody[map[string]any](t, apiDo(t, a, "POST", "/api/admin/products", body))
+	id := int64(created["id"].(float64))
+	p := decodeBody[apiProduct](t, apiDo(t, a, "GET", "/api/admin/products/"+itoa(id), nil))
+	if p.Variants[0].Stock != 100 {
+		t.Fatalf("expected initial stock 100, got %+v", p.Variants[0])
+	}
+
+	// An order lands in between: decrements stock the same way checkout does.
+	zone, _ := st.CreateZone(ctx, store.Zone{Name: "Z", Fee: 0, Active: true})
+	if _, err := st.PlaceOrder(ctx, store.NewOrder{Name: "A", Phone: "01712345678", Email: "a@b.co", Address: "somewhere far", ZoneID: zone, Lines: []store.OrderLine{{VariantID: p.Variants[0].ID, Qty: 7}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The client only edits price and PUTs back the stale (pre-decrement) body.
+	p.Variants[0].Price = 140
+	if w := apiDo(t, a, "PUT", "/api/admin/products/"+itoa(id), p); w.Code != 200 {
+		t.Fatalf("put: %d %s", w.Code, w.Body.String())
+	}
+	full, _ := st.GetProduct(ctx, id)
+	if full.Variants[0].Stock != 93 {
+		t.Fatalf("stock decrement clobbered by stale PUT: got %d, want 93", full.Variants[0].Stock)
+	}
+	if full.Variants[0].Price != 140 {
+		t.Fatalf("price change was lost: got %d, want 140", full.Variants[0].Price)
+	}
+}
+
 func TestAPIDeleteOrderedProductConflicts(t *testing.T) {
 	a, st := apiApp(t)
 	ctx := context.Background()

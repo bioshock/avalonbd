@@ -290,13 +290,33 @@ func (a *App) apiProductUpdate(w http.ResponseWriter, r *http.Request) {
 	errs := validateProduct(&p, vs)
 	// Review Focus 2: a variant id from another product would make
 	// syncVariants update nothing and then delete this product's real rows.
-	own := map[int64]bool{}
+	own := map[int64]int{} // variant id -> its live stock, for the SkipStockUpdate check below
 	for _, v := range existing.Variants {
-		own[v.ID] = true
+		own[v.ID] = v.Stock
 	}
 	for i, v := range vs {
-		if v.ID != 0 && !own[v.ID] {
+		if v.ID == 0 {
+			continue
+		}
+		stock, isOwn := own[v.ID]
+		if !isOwn {
 			errs[fmt.Sprintf("variants[%d].id", i)] = "not a variant of this product (use 0 for a new variant)"
+			continue
+		}
+		// C2, ported from the admin form (products.go's SkipStockUpdate):
+		// the documented GET -> edit -> PUT round-trip resubmits whatever
+		// stock number the earlier GET returned for any field the client
+		// didn't mean to touch. Unlike the admin form, the JSON API has no
+		// hidden "rendered with" field distinct from the live value, so it
+		// cannot tell "untouched" apart from "stale". Treating a mismatch
+		// against the row's live stock as staleness and keeping the
+		// database's value is the safe side of that ambiguity: an order's
+		// decrement must never be silently reverted by an unrelated PUT
+		// (e.g. a price change) that carries a stale, pre-decrement number.
+		// A PUT that resubmits the same stock the row already has behaves
+		// identically either way.
+		if v.Stock != stock {
+			vs[i].SkipStockUpdate = true
 		}
 	}
 	if len(errs) > 0 {
